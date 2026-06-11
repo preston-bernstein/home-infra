@@ -1,0 +1,3 @@
+# One Docker service per Home MCP, routed by nginx
+
+The alternative (mcpo gateway) wraps stdio MCPs behind a single port but is designed for third-party stdio packages, not custom services. Custom Home MCPs (fashion-monitor, financial-pipeline, future) are TypeScript services that naturally run their own SSE HTTP servers. Running each as its own Docker service on its own port, with nginx routing `/mcp/<name>` paths, is the consistent pattern: adding a new MCP means adding a compose service and an nginx location block — the same operation every time. Port proliferation is not a concern at this scale.

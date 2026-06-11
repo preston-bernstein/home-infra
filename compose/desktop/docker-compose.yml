@@ -1,0 +1,31 @@
+# Desktop compose — multimedia (10.0.0.243)
+# See docs/specs/ai-stack.md — Phase 2
+
+services:
+  librechat:
+    image: ghcr.io/danny-avila/librechat:latest
+    container_name: librechat
+    restart: always
+    ports:
+      - "3080:3080"
+    environment:
+      - MONGO_URI=mongodb://mongodb:27017/LibreChat
+      - OLLAMA_BASE_URL=http://localhost:11434
+      # - ANTHROPIC_API_KEY=<set in .env>
+    volumes:
+      - /var/data/librechat:/app/data
+    depends_on:
+      - mongodb
+    network_mode: host   # needs localhost:11434 for Ollama
+
+  mongodb:
+    image: mongo:7
+    container_name: mongodb
+    restart: always
+    volumes:
+      - /var/data/mongodb:/data/db
+    ports:
+      - "27017:27017"
+
+  # TODO: nginx — TLS termination via tailscale cert, proxy to librechat :3080
+

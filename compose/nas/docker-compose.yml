@@ -1,0 +1,56 @@
+# NAS compose — house-of-light (10.0.0.250)
+# Deploy path: /volume1/docker/ai/docker-compose.yml
+# See docs/specs/lightrag-vault-indexer.md and docs/specs/ai-stack.md
+
+services:
+  lightrag:
+    image: ghcr.io/hkuds/lightrag:latest
+    container_name: lightrag
+    restart: always
+    ports:
+      - "9621:9621"
+    environment:
+      - LLM_BINDING=ollama
+      - LLM_MODEL=llama3.1:8b
+      - LLM_BINDING_HOST=http://10.0.0.243:11434
+      - EMBEDDING_BINDING=ollama
+      - EMBEDDING_MODEL=mxbai-embed-large
+      - EMBEDDING_BINDING_HOST=http://10.0.0.243:11434
+      - RAG_DIR=/data/rag
+      - LIGHTRAG_API_KEY=CHANGE_ME   # TODO: rotate
+    volumes:
+      - /volume1/docker/lightrag:/data/rag
+      - /volume1/obsidian-vault:/vault:ro
+    networks:
+      - ai-net
+
+  vault-indexer:
+    image: vault-indexer:latest
+    container_name: vault-indexer
+    restart: always
+    environment:
+      - LIGHTRAG_URL=http://lightrag:9621
+      - LIGHTRAG_API_KEY=CHANGE_ME   # TODO: rotate
+      - VAULT_PATH=/vault
+    volumes:
+      - /volume1/obsidian-vault:/vault:ro
+      - /volume1/docker/vault-indexer:/state
+    networks:
+      - ai-net
+
+  # TODO: lightrag-mcp — SSE wrapper for daniel-lightrag-mcp, port 3001
+  # TODO: nginx — MCP reverse proxy (/mcp/lightrag, /mcp/ha, /mcp/fashion, /mcp/financial)
+
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --schedule "0 0 4 * * *" --cleanup
+    networks:
+      - ai-net
+
+networks:
+  ai-net:
+    driver: bridge

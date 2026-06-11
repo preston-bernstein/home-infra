@@ -1,0 +1,3 @@
+# Use SSE transport for all Home MCPs
+
+Home MCPs are accessed from multiple clients: LibreChat on the desktop, aichat on the MacBook, aichat on the desktop, and Claude Code on the MacBook. Using stdio transport would require installing every MCP on every client machine and keeping them in sync. SSE transport runs the MCP server once on the NAS, exposes it over HTTP, and any Tailscale-connected client can reach it without a local install. This is the correct pattern for a multi-client home network. External MCPs (Brave Search, fetch) remain stdio because they are third-party packages not hosted by the user.

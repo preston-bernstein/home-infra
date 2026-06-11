@@ -1,0 +1,3 @@
+# Use mxbai-embed-large for embeddings instead of nomic-embed-text
+
+`nomic-embed-text` produces 768-dim vectors; LightRAG's vector store defaults to 1024-dim, causing an embedding dimension mismatch that prevents any document from indexing. `mxbai-embed-large` produces 1024-dim vectors and matches LightRAG's default without requiring an `EMBEDDING_DIM` override. Both models run comfortably within the RX 9070 XT's 16GB VRAM. `mxbai-embed-large` is a stronger embedding model for retrieval tasks and is the better long-term choice regardless of the dimension issue. Switching models after the index is seeded would require a full re-index, so this decision was made before the first run.

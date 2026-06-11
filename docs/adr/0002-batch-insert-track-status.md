@@ -1,0 +1,3 @@
+# Batch insert via /documents/texts with track_status polling for doc_ids
+
+The LightRAG API's `POST /documents/text` (single) and `POST /documents/texts` (batch) both return a `track_id` rather than per-document IDs in the initial response. Per-file `doc_id`s (needed for future deletion) are only available by polling `GET /documents/track_status/{track_id}` after the insert. We use the batch endpoint (`/documents/texts`) with 10-file batches and poll `track_status` after each batch to capture individual `doc_id`s before writing state. This is non-obvious from the API design — the initial POST response gives no indication that a follow-up call is required to obtain IDs.
