@@ -1,8 +1,14 @@
+# Secrets — never commit actual env files
 .env
 *.env
+!*.env.example
+
+# Python
 .venv/
-secrets/
-.DS_Store
 __pycache__/
 *.pyc
+
+# Tooling
+secrets/
+.DS_Store
 node_modules/

@@ -34,7 +34,7 @@ services:
       - EMBEDDING_MODEL=mxbai-embed-large
       - EMBEDDING_BINDING_HOST=http://10.0.0.243:11436
       - WORKING_DIR=/app/data/rag_storage
-      - LIGHTRAG_API_KEY=CHANGE_ME   # TODO: rotate
+      - LIGHTRAG_API_KEY=${LIGHTRAG_API_KEY}
     volumes:
       - /volume1/docker/ai/lightrag:/app/data
       - /volume1/obsidian-vault:/vault:ro
@@ -47,7 +47,7 @@ services:
     restart: always
     environment:
       - LIGHTRAG_URL=http://lightrag:9621
-      - LIGHTRAG_API_KEY=CHANGE_ME   # TODO: rotate
+      - LIGHTRAG_API_KEY=${LIGHTRAG_API_KEY}
       - VAULT_PATH=/vault
     volumes:
       - /volume1/obsidian-vault:/vault:ro
@@ -68,7 +68,7 @@ services:
       - --port
       - "9621"
       - --api-key
-      - CHANGE_ME   # TODO: rotate with LIGHTRAG_API_KEY
+      - ${LIGHTRAG_API_KEY}
       - --mcp-transport
       - streamable-http
       - --mcp-host

@@ -1,0 +1,3 @@
+# Caddy as the reverse proxy for home services
+
+Traefik was the main alternative — it has official Authentik middleware and Docker label-based config. Rejected because the label-per-container model gets unwieldy when proxying services across multiple machines (NAS at 10.0.0.250, HA Pi at 10.0.0.5) rather than co-located Docker containers; Traefik's strength is same-host Docker orchestration. Caddy's `forward_auth` directive handles Authentik forward auth cleanly, upstream definitions are explicit (good for cross-host routing), and the Caddyfile is readable without label archaeology. Nginx Proxy Manager rejected — no native forward auth support. Caddy runs on the desktop alongside Authentik and `cloudflared` in the same Docker stack.

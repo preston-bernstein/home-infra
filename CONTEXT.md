@@ -31,3 +31,27 @@ _Avoid_: notes, knowledge base (too generic)
 **MCP Gateway**:
 A pattern explicitly rejected — a single proxy (mcpo) wrapping multiple MCPs behind one port. Each Home MCP runs as its own service instead.
 _Avoid_: using this term to mean the nginx reverse proxy (that's just a proxy)
+
+**IdP**:
+Authentik — the single identity provider for all home services. All user authentication flows through it.
+_Avoid_: auth server, SSO server
+
+**Public Service**:
+A home service exposed via Cloudflare Tunnel at a `houseoflight.dev` subdomain, reachable off-network without a VPN client.
+_Avoid_: external service (ambiguous with third-party services)
+
+**Internal Service**:
+A home service reachable only on LAN (10.0.0.0/24) or via Tailscale. Not exposed through Cloudflare Tunnel.
+_Avoid_: local service (too vague)
+
+**OIDC Client**:
+A service that delegates authentication to the IdP via the OIDC protocol — LibreChat and Home Assistant are OIDC clients. The service never handles credentials directly.
+_Avoid_: OAuth app (OIDC is the correct term here)
+
+**Forward Auth**:
+The Caddy + Authentik pattern for services that have no native OIDC support. Caddy checks every request against Authentik before proxying it; unauthenticated requests are redirected to the IdP login page.
+_Avoid_: proxy auth (generic), middleware auth
+
+**Access Group**:
+One of three Authentik user groups controlling which services a user can reach: `admin` (Preston only), `household` (wife — most services), `social` (parents and friends — limited services).
+_Avoid_: role, permission level
