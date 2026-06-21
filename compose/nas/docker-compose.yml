@@ -3,6 +3,23 @@
 # See docs/specs/lightrag-vault-indexer.md and docs/specs/ai-stack.md
 
 services:
+  tailscale:
+    image: tailscale/tailscale:latest
+    container_name: tailscale-nas
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    volumes:
+      - /volume1/docker/tailscale:/var/lib/tailscale
+    environment:
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_HOSTNAME=house-of-light
+      - TS_SERVE_CONFIG=/var/lib/tailscale/serve-config.json
+    restart: always
+
   lightrag:
     image: ghcr.io/hkuds/lightrag:latest
     container_name: lightrag
@@ -11,15 +28,15 @@ services:
       - "9621:9621"
     environment:
       - LLM_BINDING=ollama
-      - LLM_MODEL=llama3.1:8b
-      - LLM_BINDING_HOST=http://10.0.0.243:11434
+      - LLM_MODEL=llama3.2:3b
+      - LLM_BINDING_HOST=http://10.0.0.243:11435
       - EMBEDDING_BINDING=ollama
       - EMBEDDING_MODEL=mxbai-embed-large
-      - EMBEDDING_BINDING_HOST=http://10.0.0.243:11434
-      - RAG_DIR=/data/rag
+      - EMBEDDING_BINDING_HOST=http://10.0.0.243:11436
+      - WORKING_DIR=/app/data/rag_storage
       - LIGHTRAG_API_KEY=CHANGE_ME   # TODO: rotate
     volumes:
-      - /volume1/docker/lightrag:/data/rag
+      - /volume1/docker/ai/lightrag:/app/data
       - /volume1/obsidian-vault:/vault:ro
     networks:
       - ai-net
@@ -34,12 +51,37 @@ services:
       - VAULT_PATH=/vault
     volumes:
       - /volume1/obsidian-vault:/vault:ro
-      - /volume1/docker/vault-indexer:/state
+      - /volume1/docker/ai/vault-indexer:/state
     networks:
       - ai-net
 
-  # TODO: lightrag-mcp — SSE wrapper for daniel-lightrag-mcp, port 3001
-  # TODO: nginx — MCP reverse proxy (/mcp/lightrag, /mcp/ha, /mcp/fashion, /mcp/financial)
+  lightrag-mcp:
+    image: lightrag-mcp:latest
+    container_name: lightrag-mcp
+    restart: always
+    ports:
+      - "3002:3002"
+    command:
+      - lightrag-mcp
+      - --host
+      - lightrag
+      - --port
+      - "9621"
+      - --api-key
+      - CHANGE_ME   # TODO: rotate with LIGHTRAG_API_KEY
+      - --mcp-transport
+      - streamable-http
+      - --mcp-host
+      - "0.0.0.0"
+      - --mcp-port
+      - "3002"
+      - --mcp-streamable-http-path
+      - /mcp
+      - --mcp-stateless-http
+    networks:
+      - ai-net
+    depends_on:
+      - lightrag
 
   watchtower:
     image: containrrr/watchtower

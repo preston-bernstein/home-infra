@@ -1,0 +1,36 @@
+version: "1.2.1"
+
+endpoints:
+  custom:
+    - name: "Ollama"
+      baseURL: "http://localhost:11435/v1"
+      apiKey: "ollama"
+      models:
+        default:
+          - llama3.1:8b
+          - llama3.2:3b
+          - llama3.1:70b
+          - llava:13b
+        fetch: true
+      titleConvo: true
+      titleModel: "llama3.2:3b"
+      summarize: false
+      forcePrompt: false
+      vision: true
+
+mcpSettings:
+  allowedDomains:
+    - "http://10.0.0.250:3002"
+    - "http://localhost:3003"
+    - "http://localhost:3004"
+
+mcpServers:
+  lightrag:
+    url: "http://10.0.0.250:3002/mcp"
+    type: "streamable-http"
+  vision:
+    url: "http://localhost:3003/mcp"
+    type: "streamable-http"
+  proton-email:
+    url: "http://localhost:3004/mcp"
+    type: "streamable-http"

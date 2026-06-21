@@ -1,4 +1,5 @@
 # Desktop compose — multimedia (10.0.0.243)
+# Deploy path: /var/data/docker/docker-compose.yml (or wherever Docker data lives)
 # See docs/specs/ai-stack.md — Phase 2
 
 services:
@@ -6,26 +7,47 @@ services:
     image: ghcr.io/danny-avila/librechat:latest
     container_name: librechat
     restart: always
-    ports:
-      - "3080:3080"
-    environment:
-      - MONGO_URI=mongodb://mongodb:27017/LibreChat
-      - OLLAMA_BASE_URL=http://localhost:11434
-      # - ANTHROPIC_API_KEY=<set in .env>
+    network_mode: host
     volumes:
-      - /var/data/librechat:/app/data
-    depends_on:
-      - mongodb
-    network_mode: host   # needs localhost:11434 for Ollama
+      - /opt/docker/librechat-stack/data/librechat:/app/data
+      - /opt/docker/librechat-stack/librechat.yaml:/app/librechat.yaml:ro
+    env_file:
+      - .env
+
+  vision-mcp:
+    image: vision-mcp:latest
+    container_name: vision-mcp
+    restart: always
+    network_mode: host
+    environment:
+      - OLLAMA_HOST=http://localhost:11435
+      - VISION_MODEL=llava:13b
+      - LIBRECHAT_HOST=http://localhost:3080
+      - MCP_PORT=3003
 
   mongodb:
     image: mongo:7
     container_name: mongodb
     restart: always
     volumes:
-      - /var/data/mongodb:/data/db
+      - /opt/docker/librechat-stack/data/mongodb:/data/db
     ports:
       - "27017:27017"
 
-  # TODO: nginx — TLS termination via tailscale cert, proxy to librechat :3080
-
+  proton-email-mcp:
+    build:
+      context: /opt/docker/librechat-stack/proton-email-mcp
+      dockerfile: Dockerfile
+    image: proton-email-mcp:latest
+    container_name: proton-email-mcp
+    restart: always
+    network_mode: host
+    environment:
+      - MCP_TRANSPORT=streamable-http
+      - MCP_HOST=0.0.0.0
+      - MCP_PORT=3004
+      - PROTON_USERNAME=${PROTON_USERNAME}
+      - PROTON_PASSWORD=${PROTON_PASSWORD}
+      - PROTON_BRIDGE_HOST=localhost
+      - PROTON_BRIDGE_IMAP_PORT=1143
+      - PROTON_BRIDGE_SMTP_PORT=1025
