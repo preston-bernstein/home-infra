@@ -12,3 +12,7 @@ __pycache__/
 secrets/
 .DS_Store
 node_modules/
+*.key
+*.pem
+*.crt
+*.log

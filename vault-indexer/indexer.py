@@ -22,7 +22,7 @@ import requests
 # --- Config ---
 
 LIGHTRAG_URL = os.environ.get("LIGHTRAG_URL", "http://lightrag:9621").rstrip("/")
-LIGHTRAG_API_KEY = os.environ.get("LIGHTRAG_API_KEY", "CHANGE_ME")
+LIGHTRAG_API_KEY = os.environ.get("LIGHTRAG_API_KEY") or sys.exit("LIGHTRAG_API_KEY env var is required")
 VAULT_PATH = Path(os.environ.get("VAULT_PATH", "/vault"))
 STATE_DIR = Path(os.environ.get("STATE_DIR", "/state"))
 STATE_FILE = STATE_DIR / "hashes.json"
