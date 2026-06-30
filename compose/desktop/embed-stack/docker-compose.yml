@@ -1,0 +1,45 @@
+# Desktop embed-stack — multimedia (10.0.0.243)
+# Deploy path: /opt/docker/embed-stack/docker-compose.yml  (owner: embed service user)
+#
+# SigLIP image-embedding server for the estate-scraper durable corpus (ADR 0013/0016).
+# Runs on CPU: the desktop GPU is an AMD RX 9070 XT (RDNA4/gfx1201) on ROCm 6.2, which
+# Infinity's prebuilt ROCm image (MI200/MI300 only) does not support. CPU is sub-second
+# per image — fine for the weekly ~6k batch. Bound to loopback; reached only via the
+# ollama-broker embed lane (:11438), which arbitrates it against gaming/Plex and rewrites
+# /embeddings -> /embeddings_image (image embeds need that route; the unified /embeddings
+# tokenizes a data: URI as text).
+
+services:
+  infinity-siglip:
+    image: michaelf34/infinity:latest-cpu
+    container_name: infinity-siglip
+    restart: always
+    network_mode: host
+    # Cap CPU so an embed batch can never eat the whole 32-core box (shared with
+    # gaming/Plex/other services). 8 cores is plenty for the weekly batch and
+    # leaves 24 free. The thread-count envs stop torch/BLAS oversubscribing past
+    # the cap. The broker still 503s *new* batches on gaming/Plex; this bounds the
+    # spike of an in-flight one.
+    cpus: "8.0"
+    environment:
+      - HF_HOME=/cache
+      - DO_NOT_TRACK=1
+      - OMP_NUM_THREADS=8
+      - MKL_NUM_THREADS=8
+      - OPENBLAS_NUM_THREADS=8
+    volumes:
+      - /opt/docker/embed-stack/hf-cache:/cache
+    command:
+      - v2
+      - --model-id=google/siglip-so400m-patch14-384
+      - --served-model-name=siglip-so400m-patch14-384
+      - --engine=torch
+      - --device=cpu
+      - --host=127.0.0.1
+      - --port=7997
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:7997/health').status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 180s
