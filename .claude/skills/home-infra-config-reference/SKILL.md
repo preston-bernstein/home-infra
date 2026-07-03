@@ -147,12 +147,15 @@ Set in `compose/nas/docker-compose.yml`; secret interpolated from `/volume1/dock
 
 Volumes: `/volume1/docker/ai/lightrag:/app/data`, `/volume1/obsidian-vault:/vault:ro`.
 
-### 4.2 minirag (NAS :9623) — experimental (committed, not running live)
+### 4.2 minirag (NAS :9623) — experimental (deployed and health-verified live, 2026-07-03)
 
 Set in `compose/nas/docker-compose.yml` (committed `ebc8e9e`, port corrected `8fcc49c`).
-Image `10.0.0.250:5000/minirag:latest` — must be built from source (no GHCR image;
-Dockerfile needs a dummy `touch .env`) and pushed to the NAS registry, which is also not
-running yet. Same env var names as lightrag (verified against MiniRAG source per
+Image `10.0.0.250:5000/minirag:latest` — built from source (no GHCR image; required two
+build fixes beyond the documented `touch .env` trap: add `sentence-transformers` to
+`requirements.txt`, and pre-install CPU-only `torch` to avoid a ~5GB CUDA wheel — see
+`minirag-migration-campaign` Phase 2) and shipped via Route B (save/ssh-load; the NAS
+registry is intentionally not running). `/health` confirmed 200 with correct model config;
+~508MB RSS measured. Same env var names as lightrag (verified against MiniRAG source per
 `docs/specs/minirag-migration.md`), differing values:
 
 | Env var | Value |
@@ -163,7 +166,10 @@ running yet. Same env var names as lightrag (verified against MiniRAG source per
 
 Port mapping `9623:9721` (internal port 9721, not 9621) — moved off `:9622` 2026-07-03 to
 avoid the `lightrag-trading` conflict. Volume `/volume1/docker/ai/minirag:/app/data`.
-Deployment still needs the registry/image-build steps — see `minirag-migration-campaign`.
+Still running in parallel to production LightRAG, not cut over — initial index (Phase 4)
+and lightrag-mcp compatibility (Phase 5) remain, see `minirag-migration-campaign`. Note:
+MiniRAG has no `/documents/pipeline_status` endpoint (a LightRAG-ism the spec assumed by
+analogy) — use `/health` for liveness checks instead.
 
 ### 4.3 vault-indexer (NAS, no port) — production
 

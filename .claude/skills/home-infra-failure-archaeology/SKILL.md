@@ -65,7 +65,7 @@ Chronological. "Settled" means: do not re-litigate without new evidence.
 | F9 | mxbai-embed-large truncates past ~1k tokens, silently losing long-doc tails → bge-m3 | Resolved by migration in flight |
 | F10 | `wiki-ingest.py --semantic-lint` alone runs a full ingest (entry-point bug) | CLOSED — fixed 2026-07-03 |
 | F11 | `lightrag-trading` live on NAS :9622 — in no repo file; port conflict with minirag resolved 2026-07-03 (minirag moved to :9623), identity still unknown | OPEN MYSTERY — flag, do not touch |
-| F12 | registry + minirag in repo compose but not running live — migration stalled | OPEN — the hardest live problem |
+| F12 | minirag deployed + health-verified live 2026-07-03 (PR #3); registry intentionally not running (Route B) | OPEN — Phases 4/5 (index, MCP compat) remain, no longer stalled |
 | F13 | `docs/specs/ai-stack.md` rot — written as plan, never synced after execution | OPEN process failure |
 | F14 | Crontab 2am→4am; watchtower also at 4am | Commit drift CLOSED 2026-07-03; 4am overlap still open |
 | F15 | `indexer.py --cleanup` sends uppercase `"FAILED"` → 422 on current LightRAG; failed-doc census silently errors | CLOSED — fixed 2026-07-03 |
@@ -341,27 +341,30 @@ Chronological. "Settled" means: do not re-litigate without new evidence.
   see `home-infra-architecture-contract`). Always `docker ps` before assuming a port from
   compose is free.
 
-## F12 — Migration stalled: registry + minirag in compose, neither running live
+## F12 — Migration progressing: minirag now deployed and health-verified live (was stalled)
 
-- **Symptom:** `compose/nas/docker-compose.yml` declares `registry` (:5000) and `minirag`
-  (:9623); live NAS (`docker ps`, observed 2026-07-02) runs **neither**. LightRAG still
-  serves production on :9621.
-- **Root cause (state analysis, not a single bug):** the MiniRAG migration
-  (`docs/specs/minirag-migration.md`, 5 steps + rollback) is stalled between Step 0 and
-  Step 1:
-  1. MiniRAG image not built/pushed — must be **built from source** (HKUDS/MiniRAG
-     publishes no GHCR image; its Dockerfile requires a dummy `.env` — `touch` one before
-     `docker buildx build`).
-  2. The NAS registry that the image push targets (`10.0.0.250:5000/minirag:latest`) is
-     itself not running yet.
-  3. ~~Planned port :9622 is occupied by lightrag-trading (F11).~~ RESOLVED 2026-07-03 —
-     minirag moved to :9623, no longer blocked by this.
-  4. Step 3 is explicitly TBD in the spec: lightrag-mcp ↔ MiniRAG API compatibility
-     unverified.
-- **Status:** **OPEN — the hardest live problem.** ADRs 0010/0011/0012, the migration
-  spec, `wiki-ingest.py`, and the compose changes are all committed (`ebc8e9e`, `521df55`)
-  as of 2026-07-03 — the blocker now is purely the live deploy (image build, registry,
-  actual `docker compose up` on the NAS), not repo state.
+- **Original symptom (2026-07-02):** `compose/nas/docker-compose.yml` declared `registry`
+  and `minirag`; live NAS ran neither. LightRAG still served production on :9621.
+- **Progress (PR #3, 2026-07-03 — Phases 1-3 of `minirag-migration-campaign` executed
+  for real against the live NAS):**
+  1. Models pulled on desktop: `qwen2.5:14b` (9.0GB) and `bge-m3` (1.2GB).
+  2. MiniRAG image built from source via Route B (save/ssh-load, no registry) — two real
+     build traps found and fixed: upstream `requirements.txt` omits `sentence-transformers`
+     (crash-loops with `ModuleNotFoundError` otherwise), and a naive `pip install` pulls
+     the full CUDA `torch` wheel (~5GB, useless on the GPU-less NAS) unless a CPU-only
+     torch is pre-installed. Final image ~2.0GB with both fixes.
+  3. `minirag` container deployed and `Up` on `0.0.0.0:9623->9721`; `/health` returns 200
+     with `qwen2.5:14b`/`bge-m3` correctly wired. Memory measured at ~508MB RSS — well
+     under Gate 0b's +1GB risk budget. `registry` remains intentionally NOT running
+     (Route B doesn't need it).
+  4. Real API-surface finding: MiniRAG has **no** `/documents/pipeline_status` — use
+     `/health` instead (LightRAG-ism the spec assumed by analogy, now corrected in
+     `minirag-migration-campaign` Phase 3).
+- **Status:** **OPEN, but no longer stalled** — Phases 0-3 done. Phase 4 (initial parallel
+  index into MiniRAG) and Phase 5 (lightrag-mcp ↔ MiniRAG compatibility — genuinely
+  unverified, and now more uncertain given the `/health`-vs-`/documents/pipeline_status`
+  API surface difference) are the remaining work; see `minirag-migration-campaign` for the
+  executable next steps.
 - **Do not** attempt to "clean up" the unused registry/minirag compose entries — they are
   the migration plan, not cruft. To execute the migration, use `minirag-migration-campaign`
   (the executable step-by-step home).
@@ -456,11 +459,12 @@ batch-insert/track_status, 0003 two-stage archive→delete, 0005 LibreChat on de
 
 - F5 — **CLOSED 2026-07-03.** `654891a` fail-hard fix reached local `main` when the
   local/origin git divergence was reconciled.
-- F8/F12 — MiniRAG migration stalled pre-Step-1; ADRs/spec/compose all committed now
-  (`ebc8e9e`, `521df55`, `8fcc49c`) — nothing about it uncommitted anymore. Phase 0
-  gates resolved 2026-07-03 (minirag → :9623, Route B shipping, NAS memory: free first);
-  campaign now proceeding — see `minirag-migration-campaign`. Still stalled on the actual
-  live deploy (image build, registry, etc.).
+- F8/F12 — MiniRAG migration: repo state all committed (`ebc8e9e`, `521df55`, `8fcc49c`),
+  Phase 0 gates resolved 2026-07-03, and Phases 1-3 actually executed live 2026-07-03
+  (PR #3) — models pulled, image built (two real build traps found/fixed), minirag
+  deployed and health-verified on the NAS (~508MB RSS). Remaining: Phase 4 (initial
+  parallel index) and Phase 5 (lightrag-mcp compatibility — MiniRAG's API surface differs
+  from LightRAG's more than the spec assumed). See `minirag-migration-campaign`.
 - F10 — `wiki-ingest.py --semantic-lint` entry-point bug. **CLOSED 2026-07-03.**
 - F11 — `lightrag-trading` on :9622 — undocumented; ask Preston. (Port conflict with
   minirag resolved 2026-07-03; the container's identity is still unknown.)

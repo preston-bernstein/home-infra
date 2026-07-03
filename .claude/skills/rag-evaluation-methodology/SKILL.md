@@ -407,9 +407,10 @@ historically productive places to look. Open problems live in `home-infra-resear
   `docs/specs/minirag-migration.md`, `wiki-ingest.py`, minirag service in
   `compose/nas/docker-compose.yml`, all committed by `ebc8e9e`/`521df55`/`8fcc49c`).
   No live-machine claims are made here beyond what those files state; container status
-  as of 2026-07-02: MiniRAG not yet running, `:9622` occupied by an undocumented
+  as of 2026-07-03: MiniRAG **deployed and health-verified** on `:9623` (see
+  `minirag-migration-campaign` Phase 3), `:9622` still occupied by an undocumented
   `lightrag-trading` container — confirm ownership with Preston before using `:9622`
-  (see `home-infra-architecture-contract`). MiniRAG itself is `:9623` as of 2026-07-03.
+  (see `home-infra-architecture-contract`).
 - The ~35% (ADR 0010) and ~1k-token (ADR 0011) figures are quoted from the ADRs; their
   original measurement procedures are not recorded anywhere in the repo — treat Recipes 1
   and 2 as the reproduction protocol, not as confirmation the numbers are current.
