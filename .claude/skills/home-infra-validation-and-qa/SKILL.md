@@ -52,7 +52,7 @@ curl -s -X POST http://10.0.0.250:9621/documents/paginated \
   -d '{"page": 1, "page_size": 50, "status_filter": "failed"}' \
   | python3 -c 'import json,sys; d=json.load(sys.stdin); print("FAILED docs:", len(d.get("documents",[])))'
 ```
-(Request shape + quirks — lowercase `status_filter`, `page_size >= 10`, live-verified 2026-07-02: `rag-stack-reference`. For MiniRAG, same call against `<MINIRAG_PORT>` once MiniRAG is deployed (Gate 0a); as of 2026-07-02 `:9622` answers as `lightrag-trading` — do not probe it with authed writes. API compatibility is **unverified** — migration Step 3, see `minirag-migration-campaign`.)
+(Request shape + quirks — lowercase `status_filter`, `page_size >= 10`, live-verified 2026-07-02: `rag-stack-reference`. **This exact call will NOT work against MiniRAG** — `/documents/paginated` is not in MiniRAG's confirmed endpoint list (found 2026-07-03, see `home-infra-failure-archaeology` F12); MiniRAG is deployed live on `:9623` but its FAILED-doc census needs a different approach entirely, not just a port swap.)
 
 **Container health (NAS; same idea on desktop with plain `docker ps`):**
 ```bash
@@ -83,7 +83,7 @@ Rule (mirrors the hypothesis-predicts-numbers method in `rag-evaluation-methodol
 
 | # | Threshold (CANDIDATE) | Measured how |
 |---|---|---|
-| C1 | **≥ 97% of eligible files reach `PROCESSED` on the full re-index into MiniRAG** (i.e. MiniRAG must at least match the LightRAG baseline) | Coverage numerator/denominator commands (§1), pointed at the MiniRAG state file `/volume1/docker/ai/vault-indexer/hashes-minirag.json` and `<MINIRAG_PORT>` once MiniRAG is deployed (Gate 0a); as of 2026-07-02 `:9622` answers as `lightrag-trading` — do not probe it with authed writes |
+| C1 | **≥ 97% of eligible files reach `PROCESSED` on the full re-index into MiniRAG** (i.e. MiniRAG must at least match the LightRAG baseline) | Coverage numerator/denominator commands (§1), pointed at the MiniRAG state file `/volume1/docker/ai/vault-indexer/hashes-minirag.json` and MiniRAG's `:9623`. **Blocked as of 2026-07-03:** `indexer.py`'s document API doesn't match MiniRAG's actual endpoints (see `home-infra-failure-archaeology` F12) — this threshold can't be measured until that's resolved, not just a deployment/port question anymore |
 | C2 | **Both representative queries (§3) return answers grounded in the correct source files** via lightrag-mcp → MiniRAG | Run each golden query; check groundedness against `golden-queries.md` |
 | C3 | **No growth in FAILED-status count over 3 consecutive nightly runs** post-cutover | FAILED census (§1) after each 4am run, 3 days running |
 
@@ -193,4 +193,4 @@ A block with `Measured:` empty or vaguer than `Predicted:` is not a sign-off. "L
   - Cron hour: `cat vault-indexer/crontab`
   - State path on NAS: `grep -n "vault-indexer:/state" compose/nas/docker-compose.yml` (spec has one stale `/volume1/docker/vault-indexer/` line — compose wins)
   - Live container census: `ssh -i ~/.ssh/agent_ed25519 agent@10.0.0.250 "sudo /usr/local/bin/docker ps"`
-- UNVERIFIED items are labeled inline: MiniRAG `/documents/paginated` compatibility (migration Step 3 TBD); the exact stack-health script name/path (owned and defined by `home-infra-diagnostics`).
+- Labeled inline: MiniRAG `/documents/paginated` compatibility — **confirmed incompatible 2026-07-03**, not just unverified (see `home-infra-failure-archaeology` F12); the exact stack-health script name/path (owned and defined by `home-infra-diagnostics`).

@@ -55,9 +55,9 @@ If any part of this project is ever published, open-sourced, or even described i
 **This project's specific asset.** A real ~380-file personal corpus (not a synthetic benchmark), a broker-arbitrated shared GPU that makes 14b-class inference actually schedulable alongside gaming/Plex, a measured failure baseline to beat, and a MiniRAG deployment already in flight (MiniRAG is designed for SLMs and does not require structured JSON extraction — ADR 0010; migration plan in `docs/specs/minirag-migration.md`).
 
 **First three concrete steps in this repo:**
-1. Execute the migration campaign to get MiniRAG serving: `minirag-migration-campaign` (it owns the step-by-step; blockers as of 2026-07-02 include image not built, registry not running, and live `lightrag-trading` occupying NAS :9622 — FLAG, confirm ownership with Preston, do not resolve unilaterally).
+1. MiniRAG is already **deployed and health-verified live** (2026-07-03, `minirag-migration-campaign` Phases 1-3) — the blocker now is that `vault-indexer/indexer.py`'s document API calls don't match MiniRAG's actual endpoints (scan-based, not LightRAG's submit-and-poll pattern). This needs a design decision before Phase 4 can run — see `home-infra-failure-archaeology` F12 and `minirag-migration-campaign` Phase 4.
 2. Build the gold-set groundedness eval per `rag-evaluation-methodology` and run it against the CURRENT LightRAG (:9621) to freeze the baseline before cutover.
-3. Re-index the full corpus into MiniRAG and measure the PROCESSED rate via the indexer's status reporting (operations in `home-infra-run-and-operate`; interpretation in `home-infra-diagnostics`).
+3. Once the indexer/API mismatch is resolved: re-index the full corpus into MiniRAG and measure the PROCESSED rate via the indexer's status reporting (operations in `home-infra-run-and-operate`; interpretation in `home-infra-diagnostics`).
 
 **You have a result when:** MiniRAG + qwen2.5:14b achieves ≥97% PROCESSED on the corpus AND beats the LightRAG baseline on the gold-set groundedness eval defined in `rag-evaluation-methodology`. Anything less is not a result; a worse groundedness score is a negative result worth an ADR.
 

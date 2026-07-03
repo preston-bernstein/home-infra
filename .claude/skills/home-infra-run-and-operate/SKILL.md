@@ -194,7 +194,7 @@ never re-posted, but note the code re-archives only entries *missing* the stamp)
 | Service | Host path | Notes |
 |---|---|---|
 | LightRAG | `/volume1/docker/ai/lightrag/` (container `/app/data`; working dir `/app/data/rag_storage`) | the graph + vector store — never edit by hand |
-| MiniRAG | `/volume1/docker/ai/minirag/` | **only once deployed** — minirag is committed in compose (`ebc8e9e`) but NOT running live yet |
+| MiniRAG | `/volume1/docker/ai/minirag/` | **deployed and health-verified 2026-07-03** — running parallel to production LightRAG, not indexed or cut over yet (see `home-infra-failure-archaeology` F12 for the indexing blocker) |
 | Secrets | `/volume1/docker/ai/.env` | holds `LIGHTRAG_API_KEY` (and `TS_AUTHKEY`); never copy values anywhere |
 | Compose (live) | `/volume1/docker/ai/docker-compose.yml` | repo mirror: `compose/nas/docker-compose.yml` |
 
