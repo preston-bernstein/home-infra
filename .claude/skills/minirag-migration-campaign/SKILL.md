@@ -45,20 +45,20 @@ Never SSH as `preston`. The API key `LIGHTRAG_API_KEY` lives ONLY in
 
 ---
 
-## 1. Status snapshot — as of 2026-07-02 (volatile; re-derive before acting)
+## 1. Status snapshot — as of 2026-07-03 (volatile; re-derive before acting)
 
-| Item | State as of 2026-07-02 |
+| Item | State as of 2026-07-03 |
 |---|---|
-| ADRs 0010 / 0011 / 0012 written | DONE (uncommitted worktree) |
-| `docs/specs/minirag-migration.md` written | DONE (uncommitted worktree) |
-| `minirag` service stanza in `compose/nas/docker-compose.yml` | DONE (uncommitted; image `10.0.0.250:5000/minirag:latest`, ports `9622:9721`) |
-| `_raw/` exclusion + `STATE_FILE` override in `vault-indexer/indexer.py` | DONE in repo (uncommitted) — **NOT verified in the deployed `vault-indexer:latest` image on the NAS** |
+| ADRs 0010 / 0011 / 0012 written | DONE, committed (`ebc8e9e`, `521df55`) |
+| `docs/specs/minirag-migration.md` written | DONE, committed (`ebc8e9e`) |
+| `minirag` service stanza in `compose/nas/docker-compose.yml` | DONE, committed (`ebc8e9e`; image `10.0.0.250:5000/minirag:latest`, ports `9623:9721` — corrected from `9622:9721` per Gate 0a resolution below) |
+| `_raw/` exclusion + `STATE_FILE` override in `vault-indexer/indexer.py` | DONE, committed (`ebc8e9e`) — **NOT verified in the deployed `vault-indexer:latest` image on the NAS** |
 | Models decided | DONE — qwen2.5:14b (LLM, broker :11435) + bge-m3 (embeddings, broker :11436) |
 | Models pulled on desktop | UNVERIFIED — check with Phase 1 |
 | MiniRAG image built / in registry | NOT DONE — no image; registry catalog unreachable |
 | `registry` container on NAS | NOT RUNNING (in repo compose, not live) |
 | `minirag` container on NAS | NOT RUNNING (in repo compose only) |
-| NAS `:9622` | **OCCUPIED by `lightrag-trading`** (0.0.0.0:9622→9621, live 2026-07-02, in NO repo file) — CONFLICT with the port the spec/compose assign to minirag |
+| Gate 0a (:9622 port conflict) | **RESOLVED 2026-07-03 — Option 2: minirag moved to `:9623`.** `lightrag-trading` still occupies `:9622` and its ownership is still undocumented (see F11) — that mystery stays open, but it's no longer a blocker since minirag no longer wants that port. Repo compose + spec updated to `9623:9721` consistently. |
 | lightrag-mcp ↔ MiniRAG compatibility (spec Step 3) | UNVERIFIED — the known unknown |
 | LightRAG baseline | live on :9621, 369/379 vault files indexed (97.4% PROCESSED per `docs/specs/lightrag-vault-indexer.md`) |
 
@@ -100,7 +100,13 @@ Every phase lists PRECONDITIONS → COMMANDS → EXPECTED → BRANCHES. Do not s
 These three gates require decisions from Preston. Route each through
 `home-infra-change-control`. **DO NOT GUESS** any of them.
 
-**Gate 0a — resolve the :9622 port conflict (HUMAN GATE).**
+**All three gates below were RESOLVED 2026-07-03** (per `home-infra-failure-archaeology`
+F8/F12 open-items note): Gate 0a → Option 2, minirag moved to `:9623`; Gate 0b → verify
+and free NAS memory headroom before deploying; Gate 0c → Route B (save/ssh-load). The
+gate writeups below are kept for the reasoning/evidence — read them for context, but the
+decisions are made; proceed to Phase 1 without re-litigating.
+
+**Gate 0a — resolve the :9622 port conflict (HUMAN GATE) — RESOLVED, Option 2.**
 Repo compose and the spec both assign host port `9622` to minirag. But live, as of
 2026-07-02, `lightrag-trading` (0.0.0.0:9622→9621, a second LightRAG instance appearing in
 **no repo file**) occupies :9622. Its owner/purpose is undocumented (drift-register item —
@@ -123,7 +129,7 @@ Present Preston exactly two options and record the answer:
 Everywhere below, `<MRPORT>` means the resolved host port. Do not proceed past this gate
 with `<MRPORT>` unresolved.
 
-**Gate 0b — NAS memory headroom (HUMAN-ACKNOWLEDGED RISK).**
+**Gate 0b — NAS memory headroom (HUMAN-ACKNOWLEDGED RISK) — RESOLVED: free headroom first.**
 The NAS has 7.7GB RAM and was already at 3.2GB swap under load when ADR 0005 was written.
 MiniRAG's resident memory footprint is **UNVERIFIED** (no measurement exists), and during
 the parallel phase LightRAG + lightrag-trading + MiniRAG all run at once.
@@ -137,9 +143,10 @@ EXPECTED: `Mem: total` ≈ 7700–7900 MB. Record `used`, `available`, and `Swap
 already < ~500 MB or swap used > ~4 GB, tell Preston the parallel deploy is high-risk and
 get an explicit go/no-go. Label everything about MiniRAG memory UNVERIFIED until observed.
 
-**Gate 0c — choose the image-shipping route (HUMAN GATE).**
+**Gate 0c — choose the image-shipping route (HUMAN GATE) — RESOLVED: Route B.**
 The `registry` service (registry:2, :5000, `/volume1/docker/registry`) is in repo compose
-but NOT running live as of 2026-07-02. Two routes; confirm which with Preston:
+but NOT running live as of 2026-07-02. Route B (save/ssh-load) was chosen — Route A detail
+kept below only in case Route B hits an unexpected blocker and you need the fallback-of-the-fallback:
 
 - **Route A — start the registry** (behavior change on the NAS → change control):
   `$NAS "cd /volume1/docker/ai && $DK compose up -d registry"` — then Phase 2 pushes to

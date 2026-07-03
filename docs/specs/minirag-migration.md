@@ -33,7 +33,7 @@ This pattern (build → push to `10.0.0.250:5000/<image>`) applies to all custom
 
 ---
 
-## Step 1 — Deploy MiniRAG in parallel (NAS :9622)
+## Step 1 — Deploy MiniRAG in parallel (NAS :9623)
 
 Add to `/volume1/docker/ai/docker-compose.yml` alongside LightRAG. LightRAG stays on :9621 untouched.
 
@@ -43,7 +43,7 @@ minirag:
   container_name: minirag
   restart: always
   ports:
-    - "9622:9721"   # MiniRAG default internal port is 9721 (not 9621)
+    - "9623:9721"   # MiniRAG default internal port is 9721 (not 9621); :9622 is occupied by lightrag-trading (Gate 0a)
   environment:
     - LLM_BINDING=ollama
     - LLM_MODEL=qwen2.5:14b
@@ -63,7 +63,7 @@ minirag:
 - [x] No GHCR image — must build locally (see Prerequisites)
 - [x] Env vars confirmed: `LLM_BINDING`, `LLM_BINDING_HOST`, `LLM_MODEL`, `EMBEDDING_BINDING`, `EMBEDDING_BINDING_HOST`, `EMBEDDING_MODEL`, `WORKING_DIR` all match
 - [x] `LIGHTRAG_API_KEY` confirmed — same env var, same `X-API-Key` header
-- [x] Internal port is **9721** (server `PORT` default) — compose mapping corrected to `9622:9721`
+- [x] Internal port is **9721** (server `PORT` default) — compose mapping corrected to `9623:9721` (Gate 0a: :9622 occupied by `lightrag-trading`, resolved 2026-07-03 to move minirag to :9623)
 
 Deploy:
 ```bash
@@ -74,7 +74,7 @@ docker logs minirag   # expect startup, not crash
 
 Verify MiniRAG API reachable:
 ```bash
-curl -s -H "X-API-Key: ${LIGHTRAG_API_KEY}" http://10.0.0.250:9622/documents/pipeline_status
+curl -s -H "X-API-Key: ${LIGHTRAG_API_KEY}" http://10.0.0.250:9623/documents/pipeline_status
 ```
 
 ---
@@ -86,7 +86,7 @@ Run vault-indexer against MiniRAG with `STATE_FILE` overridden. LightRAG and `ha
 ```bash
 docker run --rm \
   --network container:lightrag \
-  -e LIGHTRAG_URL=http://10.0.0.250:9622 \
+  -e LIGHTRAG_URL=http://10.0.0.250:9623 \
   -e LIGHTRAG_API_KEY=${LIGHTRAG_API_KEY} \
   -e VAULT_PATH=/vault \
   -e STATE_FILE=/state/hashes-minirag.json \
@@ -114,12 +114,12 @@ tail -f /volume1/docker/ai/vault-indexer/hashes-minirag.json   # grows as files 
 
 **TBD: lightrag-mcp API compatibility with MiniRAG not verified.**
 
-1. Temporarily run lightrag-mcp pointed at MiniRAG:9622:
+1. Temporarily run lightrag-mcp pointed at MiniRAG:9623:
 ```bash
 docker run --rm -it \
   --network container:lightrag \
   lightrag-mcp:latest lightrag-mcp \
-  --host 10.0.0.250 --port 9622 \
+  --host 10.0.0.250 --port 9623 \
   --api-key ${LIGHTRAG_API_KEY} \
   --mcp-transport streamable-http \
   --mcp-host 0.0.0.0 --mcp-port 3003 \
@@ -150,7 +150,7 @@ docker compose stop lightrag vault-indexer
 
 **b. Update `/volume1/docker/ai/docker-compose.yml`:**
 - Remove `lightrag` service (or comment it out)
-- Change MiniRAG port: `9622:9721` → `9621:9721`
+- Change MiniRAG port: `9623:9721` → `9621:9721`
 - Update `lightrag-mcp` command: `--host lightrag --port 9621` → `--host minirag --port 9721`
 - Update `vault-indexer` env: `LIGHTRAG_URL=http://minirag:9621`
 - Remove `STATE_FILE` override from vault-indexer (or set to `/state/hashes.json`)

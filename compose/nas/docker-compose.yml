@@ -57,7 +57,7 @@ services:
     container_name: minirag
     restart: always
     ports:
-      - "9622:9721"
+      - "9623:9721"   # :9622 occupied by lightrag-trading (Gate 0a, resolved 2026-07-03)
     environment:
       - LLM_BINDING=ollama
       - LLM_MODEL=qwen2.5:14b

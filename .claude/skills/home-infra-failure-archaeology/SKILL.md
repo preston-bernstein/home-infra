@@ -46,7 +46,7 @@ Chronological. "Settled" means: do not re-litigate without new evidence.
 | F2 | Open WebUI has no MCP client → removed entirely, LibreChat instead | Resolved (settled) |
 | F3 | mcpo gateway, Traefik, Nginx Proxy Manager all rejected | Settled |
 | F4 | Raw Ollama `:11434` everywhere → broker lanes wired repo-wide | Resolved; standing invariant |
-| F5 | Secrets in repo (`OVERSEERR_KEY`, `LIGHTRAG_API_KEY=changeme`) → hygiene commit; fail-hard fix stranded on branch | Partially resolved; rotation caution stands |
+| F5 | Secrets in repo (`OVERSEERR_KEY`, `LIGHTRAG_API_KEY=changeme`) → hygiene commit; fail-hard fix stranded on branch | Resolved 2026-07-03 (local/origin reconciled); rotation caution stands |
 | F6 | ADR 0006 says SSE; everything actually runs streamable-http | Superseded in practice; ADR text stale |
 | F7 | Infinity ROCm image unsupported on RDNA4 → CPU fallback; `/embeddings` vs `/embeddings_image` trap | Resolved (settled) |
 | F8 | LightRAG SLM extraction fails ~35% at 8b → MiniRAG pivot; workarounds rejected | Open until migration completes |
@@ -165,17 +165,18 @@ Chronological. "Settled" means: do not re-litigate without new evidence.
     LIGHTRAG_API_KEY, expand .gitignore") — changes the indexer to
     `os.environ.get("LIGHTRAG_API_KEY") or sys.exit(...)` and adds `*.key/*.pem/*.crt/*.log`
     to `.gitignore`.
-- **Status:** **Partially resolved.** The `.env` pattern is resolved and standing
+- **Status:** **Resolved** (2026-07-03). The `.env` pattern is resolved and standing
   (secrets live only in `.env` on the machines; `.env.example` committed — project owner
-  standing instruction). `654891a` exists on **`add-embed-stack` AND `origin/main`** —
-  the `origin/main` tip IS `654891a` (`git branch -a --contains 654891a`). But the
-  **local `main` is a divergent rewrite**: the embed-stack commit was re-created locally
-  as `6cbd3a1` *without* the fix, so local `main` (and the current worktree)
-  still has the soft default `LIGHTRAG_API_KEY = os.environ.get("LIGHTRAG_API_KEY", "changeme")`
-  at `vault-indexer/indexer.py:25`, and its `.gitignore` lacks the `*.key/*.pem/*.crt/*.log`
-  lines. Pushing local `main` would conflict with a remote that already contains the
-  security fix — reconciling local `main` with `origin/main` is an open TODO (route
-  through `home-infra-change-control`).
+  standing instruction). `654891a` shipped on **`add-embed-stack` AND `origin/main`** —
+  the `origin/main` tip's embed-stack commit is `6cbd3a1`, with `654891a` as an ancestor.
+  The **local `main` had been an independent rewrite**: its embed-stack commit carried a
+  different hash (`f12915b`, since discarded) and lacked the fix — local still had the
+  soft default `LIGHTRAG_API_KEY = os.environ.get("LIGHTRAG_API_KEY", "changeme")` and a
+  `.gitignore` missing the `*.key/*.pem/*.crt/*.log` lines. Reconciled by hard-resetting
+  local `main` onto `origin/main` (content-identical for the shared range, plus the
+  security fix) and replaying the uncommitted worktree on top; one conflict in
+  `docs/specs/lightrag-vault-indexer.md` resolved in favor of the current (post-deploy)
+  status text. Local now matches `origin/main` plus fast-forwarded pushes.
 - **Standing caution:** the live key was later rotated off `changeme`
   (`docs/specs/lightrag-vault-indexer.md:11`); real values live in `.env` on the machines
   (e.g. `/volume1/docker/ai/.env` on the NAS — never copy values into files). Anything that
