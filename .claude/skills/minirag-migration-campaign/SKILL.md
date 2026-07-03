@@ -54,13 +54,14 @@ Never SSH as `preston`. The API key `LIGHTRAG_API_KEY` lives ONLY in
 | `minirag` service stanza in `compose/nas/docker-compose.yml` | DONE, committed (`ebc8e9e`; image `10.0.0.250:5000/minirag:latest`, ports `9623:9721` — corrected from `9622:9721` per Gate 0a resolution below) |
 | `_raw/` exclusion + `STATE_FILE` override in `vault-indexer/indexer.py` | DONE, committed (`ebc8e9e`) — **NOT verified in the deployed `vault-indexer:latest` image on the NAS** |
 | Models decided | DONE — qwen2.5:14b (LLM, broker :11435) + bge-m3 (embeddings, broker :11436) |
-| Models pulled on desktop | UNVERIFIED — check with Phase 1 |
-| MiniRAG image built / in registry | NOT DONE — no image; registry catalog unreachable |
-| `registry` container on NAS | NOT RUNNING (in repo compose, not live) |
-| `minirag` container on NAS | NOT RUNNING (in repo compose only) |
+| Models pulled on desktop | **DONE 2026-07-03** — both `qwen2.5:14b` (9.0GB) and `bge-m3` (1.2GB) present (`ollama list`) |
+| MiniRAG image built / shipped | **DONE 2026-07-03** — built locally (~2.0GB after TRAP 2/3 fixes, see Phase 2), shipped via Route B, present on NAS as `10.0.0.250:5000/minirag:latest` |
+| `registry` container on NAS | NOT RUNNING — Gate 0c chose Route B, registry intentionally not started |
+| `minirag` container on NAS | **DEPLOYED 2026-07-03 (Phase 3 complete)** — `Up` on `0.0.0.0:9623->9721`, `/health` → 200, config confirms `qwen2.5:14b`/`bge-m3` wired correctly. First real memory measurement: ~508MB RSS, well under the +1GB budget. First attempt crash-looped on a missing `sentence_transformers` dependency (TRAP 2) — fixed by patching the build, not a live-config issue. |
 | Gate 0a (:9622 port conflict) | **RESOLVED 2026-07-03 — Option 2: minirag moved to `:9623`.** `lightrag-trading` still occupies `:9622` and its ownership is still undocumented (see F11) — that mystery stays open, but it's no longer a blocker since minirag no longer wants that port. Repo compose + spec updated to `9623:9721` consistently. |
-| lightrag-mcp ↔ MiniRAG compatibility (spec Step 3) | UNVERIFIED — the known unknown |
-| LightRAG baseline | live on :9621, 369/379 vault files indexed (97.4% PROCESSED per `docs/specs/lightrag-vault-indexer.md`) |
+| lightrag-mcp ↔ MiniRAG compatibility (spec Step 3) | UNVERIFIED — the known unknown; Phase 5 is a HUMAN GATE, not yet executed. Note: MiniRAG's API surface differs from LightRAG's more than expected — no `/documents/pipeline_status`, uses `/health` instead (see Phase 3) — increases the odds lightrag-mcp needs patching, not just repointing. |
+| LightRAG baseline | live on :9621, 369/379 vault files indexed (97.4% PROCESSED per `docs/specs/lightrag-vault-indexer.md`) — untouched throughout Phase 1-3, zero downtime |
+| Phase 4 (initial index) | NOT STARTED — next step, human-authorized (not a HUMAN GATE itself, but STATE_FILE precondition must be checked first per Phase 4 precondition 2) |
 
 ### Re-derive current status from scratch (all read-only)
 
@@ -200,9 +201,31 @@ No pre-built image exists (HKUDS/MiniRAG has no CI/CD → nothing on GHCR). Buil
 source per spec Prerequisites. **TRAP (spec-documented, REQUIRED):** the MiniRAG Dockerfile
 requires a `.env` file that is not in the repo — `touch` it or the build fails.
 
+**TRAP 2 (found 2026-07-03, REQUIRED):** upstream `requirements.txt` omits
+`sentence-transformers`, which `minirag/utils.py` imports unconditionally at module load —
+the container crash-loops with `ModuleNotFoundError: No module named 'sentence_transformers'`
+if you build straight from the clone. Add it to `requirements.txt` before building.
+
+**TRAP 3 (found 2026-07-03, REQUIRED):** installing `sentence-transformers` pulls in `torch`,
+and a plain `pip install` resolves the default PyPI wheel — which bundles the full CUDA
+toolkit (~5GB extra, useless on the NAS: it has no GPU, and inference goes through the
+broker over HTTP anyway). Pre-install CPU-only torch so it's already satisfied when
+`sentence-transformers`/`accelerate` resolve their `torch>=2.0.0` requirement.
+
 ```bash
 git clone --depth 1 https://github.com/HKUDS/MiniRAG.git /tmp/minirag-build
 touch /tmp/minirag-build/.env                       # REQUIRED — build breaks without it
+echo "sentence-transformers" >> /tmp/minirag-build/requirements.txt   # REQUIRED — TRAP 2
+```
+
+Then insert a CPU-only torch install into the Dockerfile, right before the existing
+`RUN pip install --user --no-cache-dir -r requirements.txt` line (builder stage):
+
+```dockerfile
+RUN pip install --user --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+```
+
+```bash
 docker buildx build --platform linux/amd64 \
   -t 10.0.0.250:5000/minirag:latest \
   /tmp/minirag-build
@@ -210,6 +233,9 @@ docker buildx build --platform linux/amd64 \
 
 (`--platform linux/amd64` is mandatory: the NAS is x86 (Ryzen R1600); an Apple-Silicon-native
 build will not run there.)
+
+With all three fixes applied, the final image is **~2.0GB** (verified 2026-07-03; without the
+CPU-only torch pin it balloons to ~6GB from CUDA wheels that are never used).
 
 Ship — **Route A** (registry running, insecure-registry configured):
 
@@ -268,26 +294,45 @@ $NAS "$DK logs --tail 50 minirag"
 EXPECTED: clean startup in logs (server binds 0.0.0.0:9721; no tracebacks, no restart loop;
 `$NAS "$DK ps"` shows minirag `Up`, not `Restarting`).
 
-Then verify the API (run on the NAS so the key never leaves it):
+Then verify the API (run on the NAS so the key never leaves it). **API SURFACE DIFFERENCE
+(found 2026-07-03):** MiniRAG has no `/documents/pipeline_status` endpoint at all — that's a
+LightRAG-ism this spec assumed by analogy. MiniRAG's own health/status endpoint is `/health`
+(confirmed via `/openapi.json`; full path list: `/health`, `/query`, `/query/stream`,
+`/documents`, `/documents/scan`, `/documents/scan-progress`, `/documents/upload`,
+`/documents/text`, `/documents/file`, `/documents/batch`, `/graphs`, `/graph/label/list`,
+plus an Ollama-compatible shim at `/api/chat`, `/api/generate`, `/api/tags`, `/api/version`).
+Use `/health` for all MiniRAG liveness checks — it needs no `X-API-Key` and returns config +
+indexed-file state as JSON.
 
 ```bash
-$NAS 'KEY=$(sudo grep "^LIGHTRAG_API_KEY=" /volume1/docker/ai/.env | cut -d= -f2-); \
-  curl -s -o /dev/null -w "%{http_code}\n" -H "X-API-Key: $KEY" http://localhost:<MRPORT>/documents/pipeline_status; \
-  curl -s -H "X-API-Key: $KEY" http://localhost:<MRPORT>/documents/pipeline_status'
+$NAS 'curl -s -o /dev/null -w "%{http_code}\n" --max-time 10 http://localhost:<MRPORT>/health; \
+  curl -s --max-time 10 http://localhost:<MRPORT>/health'
 ```
 
-EXPECTED: `200` and a JSON body (a pipeline-status object; idle, nothing queued).
+EXPECTED: `200` and a JSON body with `"status":"healthy"` plus `configuration.llm_model` /
+`configuration.embedding_model` matching what you set (`qwen2.5:14b` / `bge-m3`). Verified
+2026-07-03: clean startup, `/health` → 200, config echoed back correctly.
 
 BRANCHES:
 - `401`/`403` → `LIGHTRAG_API_KEY` env not loaded into the container — is `.env` next to
   the live compose file? `$NAS "$DK inspect minirag --format '{{json .Config.Env}}'" | grep -o LIGHTRAG_API_KEY` (checks presence only — do not print the value).
 - Container crash-loops → `$NAS "$DK logs minirag"`; classify: missing env → fix compose;
-  Python import/module error → image build problem, back to Phase 2; OOM-killed
+  Python import/module error → image build problem, back to Phase 2 (see TRAP 2/3 — a
+  `sentence_transformers` ModuleNotFoundError hit exactly this branch on 2026-07-03, fixed by
+  patching `requirements.txt` before the build, not by touching live config); OOM-killed
   (`$NAS "$DK inspect minirag --format '{{.State.OOMKilled}}'"` → `true`) → Gate 0b risk
   realized; stop minirag, report to Preston.
+- Empty `docker logs` right after start with no crash → not necessarily stuck: MiniRAG's
+  entrypoint lazily `pip install`s extra deps at runtime via `pipmaster` (observed installing
+  `openai` on first boot even with `LLM_BINDING=ollama`) before Python's stdout catches up.
+  Check `$DK top minirag` for an active child process before assuming it's hung; give it
+  20–30s.
 - Port bind error on `<MRPORT>` → something took the port since Gate 0a; re-run the Gate 0a grep.
 - After startup, re-run `$NAS "free -m"` and compare to the Gate 0b baseline. Record the
-  delta — this is the first real MiniRAG memory measurement (was UNVERIFIED).
+  delta — this is the first real MiniRAG memory measurement (was UNVERIFIED). **Measured
+  2026-07-03:** `minirag` container RSS ≈ 508MB (`docker stats --no-stream`); system swap
+  grew ~140MB during startup (4.625GB → 4.764GB) but stayed within Gate 0b's accepted risk
+  envelope — well under the ≤+1GB success threshold (criterion 4).
 
 ### Phase 4 — Initial index into MiniRAG (separate state file)
 
@@ -517,9 +562,8 @@ EXPECTED post-cutover checks:
 ```bash
 $NAS "$DK ps --format '{{.Names}}\t{{.Status}}\t{{.Ports}}'" | grep -Ei 'minirag|lightrag|vault'
 # EXPECT: minirag Up on 0.0.0.0:9621->9721; lightrag-mcp Up on :3002; vault-indexer Up; NO plain 'lightrag'
-$NAS 'KEY=$(sudo grep "^LIGHTRAG_API_KEY=" /volume1/docker/ai/.env | cut -d= -f2-); \
-  curl -s -o /dev/null -w "%{http_code}\n" -H "X-API-Key: $KEY" http://localhost:9621/documents/pipeline_status'
-# EXPECT: 200
+$NAS 'curl -s -o /dev/null -w "%{http_code}\n" --max-time 10 http://localhost:9621/health'
+# EXPECT: 200 (MiniRAG's health endpoint — NOT /documents/pipeline_status, see Phase 3)
 ```
 
 Then: a LibreChat Vault Assistant query (unchanged config — still :3002/mcp) returns a
@@ -604,10 +648,10 @@ retired state file survive — hence the retention rule in the fence below.
 
 | # | Criterion | Measure | Threshold |
 |---|---|---|---|
-| 1 | MiniRAG serving on :9621 | authed `GET /documents/pipeline_status` HTTP code | 200 |
+| 1 | MiniRAG serving on :9621 | `GET /health` HTTP code (no auth needed; NOT `/documents/pipeline_status` — that's LightRAG-only, MiniRAG doesn't have it) | 200 |
 | 2 | Index completeness | PROCESSED / total vault files (Phase 4 monitor commands) | ≥ 97% (LightRAG baseline 369/379 = 97.4%; goal is ≥ baseline) |
 | 3 | Retrieval quality | the two representative queries via lightrag-mcp/LibreChat | both grounded (cite real vault facts, judge per `rag-evaluation-methodology`) |
-| 4 | NAS memory | `free -m` swap-used delta vs Gate 0b baseline, steady-state | ≤ +1 GB (CANDIDATE — first-ever MiniRAG measurement) |
+| 4 | NAS memory | `free -m` swap-used delta vs Gate 0b baseline, steady-state | ≤ +1 GB — **measured 2026-07-03 during Phase 3: minirag RSS ≈ 508MB, swap delta ~140MB, well within threshold** |
 | 5 | Nightly pipeline | next ≥1 cron runs in `indexer.log` | 0 auth errors; `Unchanged (skip)` ≈ vault size; no mass re-index |
 | 6 | Repo ↔ live convergence | diff repo compose vs `/volume1/docker/ai/docker-compose.yml` | no service-level drift; drift register updated |
 | 7 | Rollback retention | LightRAG storage + retired state present until day 14 | intact (CANDIDATE window) |
