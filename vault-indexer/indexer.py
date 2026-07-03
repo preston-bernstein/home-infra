@@ -197,7 +197,9 @@ def insert_batch_lightrag(texts: list[str], file_sources: list[str]) -> list[dic
 MINIRAG_INSERT_RETRIES = 3
 MINIRAG_RETRY_DELAYS_S = [15, 45, 90]
 
-def insert_batch_minirag(texts: list[str], file_sources: list[str]) -> list[dict]:
+def insert_batch_minirag(texts: list[str], file_sources: list[str],
+                          state: dict | None = None,
+                          hash_by_source: dict | None = None) -> list[dict]:
     """MiniRAG has no bulk endpoint and returns no doc_id — POST one at a time via
     /documents/text and synthesize a stable id from the content hash so incremental
     state tracking still works. InsertResponse only has status/message/document_count,
@@ -205,7 +207,17 @@ def insert_batch_minirag(texts: list[str], file_sources: list[str]) -> list[dict
 
     Retries on failure: live Phase 4 runs (2026-07-03) saw intermittent 500s on small,
     unremarkable files with no logged traceback — looks like transient server-side
-    flakiness (possibly first-request-of-session cold start), not a per-file problem."""
+    flakiness (possibly first-request-of-session cold start), not a per-file problem.
+
+    Checkpoints after EVERY document, not just at batch/run end (state/hash_by_source
+    passed in for this purpose): a poison-pill document that always times out/errors on
+    the client side — even though MiniRAG's own kv_store_doc_status.json later showed it
+    as "processed" (the work finished server-side; only the HTTP response back to us was
+    the problem) — blocked run_index's old end-of-batch save_state() from ever firing,
+    so every restart re-submitted the documents that HAD already succeeded earlier in the
+    same batch. MiniRAG's content-hash doc IDs mean re-submits are deduped server-side
+    ("No new unique documents were found" in its logs), so this wasn't corrupting the
+    index, just wasting real time waiting on redundant work. Found live 2026-07-03."""
     docs = []
     for text, rel in zip(texts, file_sources):
         ok = False
@@ -230,11 +242,16 @@ def insert_batch_minirag(texts: list[str], file_sources: list[str]) -> list[dict
             docs.append({"file_path": rel, "id": synthetic_id, "status": "PROCESSED"})
         else:
             docs.append({"file_path": rel, "status": "FAILED", "error_msg": "insert failed"})
+
+        if ok and state is not None and hash_by_source is not None:
+            state[rel] = {"hash": hash_by_source.get(rel), "doc_id": docs[-1]["id"]}
+            save_state(state)
     return docs
 
-def insert_batch(texts: list[str], file_sources: list[str]) -> list[dict]:
+def insert_batch(texts: list[str], file_sources: list[str],
+                  state: dict | None = None, hash_by_source: dict | None = None) -> list[dict]:
     if RAG_ENGINE == "minirag":
-        return insert_batch_minirag(texts, file_sources)
+        return insert_batch_minirag(texts, file_sources, state=state, hash_by_source=hash_by_source)
     return insert_batch_lightrag(texts, file_sources)
 
 def delete_from_lightrag(doc_ids: list[str]):
@@ -297,7 +314,8 @@ def run_index(state: dict) -> dict:
         if not texts:
             continue
 
-        docs = insert_batch(texts, sources)
+        hash_by_source = {rel: new_hash for rel, new_hash in meta}
+        docs = insert_batch(texts, sources, state=state, hash_by_source=hash_by_source)
         doc_by_source = {d.get("file_path"): d for d in docs}
 
         for rel, new_hash in meta:
