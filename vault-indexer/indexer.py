@@ -23,6 +23,11 @@ import requests
 
 LIGHTRAG_URL = os.environ.get("LIGHTRAG_URL", "http://lightrag:9621").rstrip("/")
 LIGHTRAG_API_KEY = os.environ.get("LIGHTRAG_API_KEY") or sys.exit("LIGHTRAG_API_KEY env var is required")
+# RAG_ENGINE=minirag switches insert/delete to MiniRAG's API shape (found 2026-07-03: MiniRAG
+# has no bulk /documents/texts, no track_status, no per-doc delete_document — only
+# /documents/text (one doc, no doc_id returned) and a nuclear DELETE /documents that wipes
+# everything). Default is unchanged so the nightly LightRAG cron path is not affected.
+RAG_ENGINE = os.environ.get("RAG_ENGINE", "lightrag").lower()
 VAULT_PATH = Path(os.environ.get("VAULT_PATH", "/vault"))
 STATE_DIR = Path(os.environ.get("STATE_DIR", "/state"))
 STATE_FILE = Path(os.environ.get("STATE_FILE", str(STATE_DIR / "hashes.json")))
@@ -127,6 +132,10 @@ def collect_vault_files() -> dict[str, Path]:
 # --- LightRAG ops ---
 
 def pipeline_is_idle() -> bool:
+    if RAG_ENGINE == "minirag":
+        # No /documents/pipeline_status on MiniRAG, and inserts are synchronous
+        # (no async pipeline to be "busy" on) — nothing to check.
+        return True
     try:
         status = _get("/documents/pipeline_status")
         # Treat any truthy 'busy'/'is_processing' flag as busy
@@ -137,7 +146,7 @@ def pipeline_is_idle() -> bool:
         log.warning(f"Could not check pipeline status ({e}) — proceeding")
     return True
 
-def insert_batch(texts: list[str], file_sources: list[str]) -> list[dict]:
+def insert_batch_lightrag(texts: list[str], file_sources: list[str]) -> list[dict]:
     """POST batch, poll track_status, return per-file doc records (may be empty on failure)."""
     try:
         resp = _post("/documents/texts", {"texts": texts, "file_sources": file_sources})
@@ -173,7 +182,43 @@ def insert_batch(texts: list[str], file_sources: list[str]) -> list[dict]:
     except Exception:
         return []
 
+def insert_batch_minirag(texts: list[str], file_sources: list[str]) -> list[dict]:
+    """MiniRAG has no bulk endpoint and returns no doc_id — POST one at a time via
+    /documents/text and synthesize a stable id from the content hash so incremental
+    state tracking still works. InsertResponse only has status/message/document_count,
+    so "status": "processing" from a 200 response is the only success signal available."""
+    docs = []
+    for text, rel in zip(texts, file_sources):
+        try:
+            resp = _post("/documents/text", {"text": text, "description": rel})
+            ok = str(resp.get("status", "")).lower() not in ("failed", "error", "")
+        except Exception as e:
+            log.error(f"/documents/text failed for {rel}: {e}")
+            ok = False
+        if ok:
+            synthetic_id = f"minirag:{hashlib.sha256(text.encode()).hexdigest()[:16]}"
+            docs.append({"file_path": rel, "id": synthetic_id, "status": "PROCESSED"})
+        else:
+            docs.append({"file_path": rel, "status": "FAILED", "error_msg": "insert failed"})
+    return docs
+
+def insert_batch(texts: list[str], file_sources: list[str]) -> list[dict]:
+    if RAG_ENGINE == "minirag":
+        return insert_batch_minirag(texts, file_sources)
+    return insert_batch_lightrag(texts, file_sources)
+
 def delete_from_lightrag(doc_ids: list[str]):
+    if RAG_ENGINE == "minirag":
+        # MiniRAG has no per-document delete — only a nuclear DELETE /documents that wipes
+        # everything (Class D / index-destructive, human approval required per
+        # home-infra-change-control). Refuse rather than guess; entries stay in state
+        # (harmless — they're already past the archive window, just not purged server-side).
+        log.warning(
+            f"MiniRAG mode: cannot selectively delete {len(doc_ids)} doc(s) — "
+            "no per-document delete endpoint exists. Leaving them in state; "
+            "requires a human decision (full DELETE /documents wipes everything)."
+        )
+        return
     try:
         _delete("/documents/delete_document", {"doc_ids": doc_ids})
         log.info(f"Deleted {len(doc_ids)} doc(s) from LightRAG")
