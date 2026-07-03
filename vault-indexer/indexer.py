@@ -36,6 +36,12 @@ LOG_FILE = STATE_DIR / "indexer.log"
 BATCH_SIZE = 10
 BATCH_SLEEP_S = 2
 TRACK_TIMEOUT_S = 60
+# MiniRAG's /documents/text is synchronous — the request blocks until LLM entity
+# extraction + embedding finish server-side (unlike LightRAG's async submit-then-poll,
+# where TRACK_TIMEOUT_S only bounds the *poll*, not the underlying work). A single doc
+# can legitimately take minutes under broker contention; 30s (the old default _post
+# timeout) caused every insert to fail as a false timeout, found live 2026-07-03.
+MINIRAG_INSERT_TIMEOUT_S = 240
 ARCHIVE_DAYS = 30
 LOG_MAX_BYTES = 1 * 1024 * 1024
 
@@ -190,7 +196,8 @@ def insert_batch_minirag(texts: list[str], file_sources: list[str]) -> list[dict
     docs = []
     for text, rel in zip(texts, file_sources):
         try:
-            resp = _post("/documents/text", {"text": text, "description": rel})
+            resp = _post("/documents/text", {"text": text, "description": rel},
+                         timeout=MINIRAG_INSERT_TIMEOUT_S)
             ok = str(resp.get("status", "")).lower() not in ("failed", "error", "")
         except Exception as e:
             log.error(f"/documents/text failed for {rel}: {e}")
@@ -284,6 +291,11 @@ def run_index(state: dict) -> dict:
                 failed += 1
 
         log.info(f"Batch {batch_num}/{total_batches} complete")
+        # Checkpoint after every batch — a multi-hour run (esp. RAG_ENGINE=minirag, where
+        # each doc blocks synchronously and can take minutes) previously only saved state
+        # once at the very end via main()'s save_state() call, so any interruption lost
+        # ALL progress from the run, not just the current batch. Found live 2026-07-03.
+        save_state(state)
 
         if i + BATCH_SIZE < len(to_index):
             time.sleep(BATCH_SLEEP_S)
