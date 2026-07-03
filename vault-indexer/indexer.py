@@ -41,7 +41,13 @@ TRACK_TIMEOUT_S = 60
 # where TRACK_TIMEOUT_S only bounds the *poll*, not the underlying work). A single doc
 # can legitimately take minutes under broker contention; 30s (the old default _post
 # timeout) caused every insert to fail as a false timeout, found live 2026-07-03.
-MINIRAG_INSERT_TIMEOUT_S = 240
+# 240s was ALSO too short: the ollama-resource-broker's batch lane (:11436, used for
+# bge-m3 embeddings) has its own 300s wait budget under GPU contention (see the broker
+# repo's "Raise batch-lane wait budget 5s -> 300s" commit) — one embed call alone can
+# legitimately take up to 300s, before even counting the LLM entity-extraction calls on
+# top of it. Observed live: a single embedding batch took 196s under contention. 600s
+# gives headroom above the broker's own ceiling instead of racing against it.
+MINIRAG_INSERT_TIMEOUT_S = 600
 ARCHIVE_DAYS = 30
 LOG_MAX_BYTES = 1 * 1024 * 1024
 
