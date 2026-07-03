@@ -118,9 +118,9 @@ Diffs repo compose files against `ssh ... cat` of the live ones
 
 ### Interpretation guide
 
-- Drift is EXPECTED right now: the repo carries the uncommitted MiniRAG migration (minirag
-  service, registry) that is not deployed. Repo-has/live-lacks `minirag`+`registry` = the
-  migration pending, not an error.
+- Drift is EXPECTED right now: the repo carries the committed MiniRAG migration (minirag
+  service, registry — `ebc8e9e`) that is not deployed live yet. Repo-has/live-lacks
+  `minirag`+`registry` = the migration pending, not an error.
 - Live-has/repo-lacks a whole service → it may belong to ANOTHER compose file or repo
   (lightrag-trading, immich, financial-pipeline are not home-infra's). Check
   `/volume1/docker/*/docker-compose.yml` before recording drift.
@@ -175,8 +175,7 @@ which short-circuits the ingest branch (verified against the entry point in
 
 ## Provenance and maintenance
 
-- Facts verified 2026-07-02 against repo commit 6cbd3a1 + uncommitted MiniRAG-migration
-  worktree, and against live machines via read-only SSH.
+- Facts verified 2026-07-02 against repo commit 6cbd3a1 + committed (ebc8e9e/521df55/8fcc49c/34988d1) MiniRAG-migration, and against live machines via read-only SSH.
 - Live-tested 2026-07-02: `stack-health.sh` full run (22 PASS / 4 WARN / 2 FAIL — broker
   transient documented above); `index-state.py` API-quirk behavior (lowercase
   `status_filter`, `page_size>=10`) verified against live LightRAG by the original author;

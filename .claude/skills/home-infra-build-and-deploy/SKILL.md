@@ -165,7 +165,7 @@ Order matters. Everything below is derived from repo files; live-machine specifi
 
 ## Provenance and maintenance
 
-- Facts verified 2026-07-02 against repo state (commit 6cbd3a1 + uncommitted MiniRAG-migration worktree changes) and live containers observed via SSH 2026-07-02 (registry, watchtower, minirag not running; lightrag-trading on :9622 present).
+- Facts verified 2026-07-02 against repo state (commit 6cbd3a1 + committed (ebc8e9e/521df55/8fcc49c/34988d1) MiniRAG-migration changes) and live containers observed via SSH 2026-07-02 (registry, watchtower, minirag not running; lightrag-trading on :9622 present).
 - Sources: `compose/nas/docker-compose.yml`, `compose/desktop/docker-compose.yml`, `compose/desktop/embed-stack/docker-compose.yml`, `vault-indexer/Dockerfile`, `vault-indexer/crontab`, `mcp/lightrag/Dockerfile` + README, `mcp/vision/Dockerfile`, `docs/specs/minirag-migration.md` (Prerequisites + Step 1), `docs/specs/lightrag-vault-indexer.md` (Dockerfile/build section), `.env.example` files. Service-user and SSH-identity rules: project owner standing instructions.
 - Re-verification one-liners:
   - Deploy paths / network / watchtower schedule: `grep -n "Deploy path\|ai_ai-net\|--schedule" compose/*/docker-compose.yml`

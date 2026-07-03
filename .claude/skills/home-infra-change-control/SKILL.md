@@ -167,7 +167,7 @@ Do not declare a Class C/D/E change done on "the container started." Run the smo
 
 ## Provenance and maintenance
 
-- Facts verified 2026-07-02 against repo state (commit `6cbd3a1` + uncommitted MiniRAG-migration worktree changes) and live containers observed via SSH 2026-07-02. Commits `f2565b4`, `3ec836f`, `654891a` read via `git show`; ADRs 0001/0002/0003/0010/0011/0012 and `docs/specs/minirag-migration.md` read in full.
+- Facts verified 2026-07-02 against repo state (commit `6cbd3a1` + committed (ebc8e9e/521df55/8fcc49c/34988d1) MiniRAG-migration changes) and live containers observed via SSH 2026-07-02. Commits `f2565b4`, `3ec836f`, `654891a` read via `git show`; ADRs 0001/0002/0003/0010/0011/0012 and `docs/specs/minirag-migration.md` read in full.
 - Standing-instruction rules (3, 4, 5; parts of 2 and 7) source: project owner standing instructions — not derivable from repo files alone.
 - Re-verification one-liners (run from repo root):
   - Broker rule / :11434 sweep: `grep -rn '11434' compose/ mcp/ vault-indexer/ wiki-ingest.py`

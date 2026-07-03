@@ -182,7 +182,7 @@ A block with `Measured:` empty or vaguer than `Predicted:` is not a sign-off. "L
 
 ## Provenance and maintenance
 
-- Facts verified 2026-07-02 against repo state (commit 6cbd3a1 + uncommitted MiniRAG-migration worktree changes: `docs/specs/minirag-migration.md`, minirag compose service, `_raw` exclusion + `STATE_FILE` override) and live containers observed via SSH 2026-07-02.
+- Facts verified 2026-07-02 against repo state (commit 6cbd3a1 + committed (ebc8e9e/521df55/8fcc49c/34988d1) MiniRAG-migration changes: `docs/specs/minirag-migration.md`, minirag compose service, `_raw` exclusion + `STATE_FILE` override) and live containers observed via SSH 2026-07-02.
 - The three CANDIDATE cutover thresholds (§2) and the golden-query home (§3) are **authoring-agent proposals, not human-certified** — Preston sets the final numbers/location.
 - `lightrag-trading` occupying NAS `:9622` is undocumented live reality (observed 2026-07-02); do not resolve, confirm ownership with Preston. Authoritative drift register: `home-infra-architecture-contract`.
 - Re-verification one-liners for volatile facts:

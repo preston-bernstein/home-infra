@@ -207,7 +207,7 @@ Also from standing instructions: agents do not commit at all unless explicitly a
 
 ## Provenance and maintenance
 
-- Facts verified 2026-07-02 against repo state (commit 6cbd3a1 + uncommitted MiniRAG-migration worktree changes: ADRs 0010–0012, `docs/specs/minirag-migration.md`, CONTEXT.md Wiki/Capture/Ingest/Lint entries). No live-machine facts in this skill except the drift examples in §1, which `home-infra-architecture-contract` owns.
+- Facts verified 2026-07-02 against repo state (commit 6cbd3a1 + committed (ebc8e9e/521df55/8fcc49c/34988d1) MiniRAG-migration changes: ADRs 0010–0012, `docs/specs/minirag-migration.md`, CONTEXT.md Wiki/Capture/Ingest/Lint entries). No live-machine facts in this skill except the drift examples in §1, which `home-infra-architecture-contract` owns.
 - Controlled-vocabulary term list (§2): `grep -n '^\*\*' /Users/prestonbernstein/dev/home-infra/CONTEXT.md`
 - ADR inventory and next free number (§3): `ls /Users/prestonbernstein/dev/home-infra/docs/adr/`
 - ADR length norm (§3): `ls -l /Users/prestonbernstein/dev/home-infra/docs/adr/`

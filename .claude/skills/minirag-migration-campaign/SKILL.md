@@ -77,7 +77,8 @@ curl -s --max-time 5 http://10.0.0.250:5000/v2/_catalog # connection refused = r
 # Has the parallel-index state file been started?
 $NAS "ls -la /volume1/docker/ai/vault-indexer/ 2>&1"   # look for hashes-minirag.json
 
-# Are the migration repo changes still uncommitted?
+# Migration repo changes are committed as of 2026-07-03 (ebc8e9e, 521df55, 8fcc49c);
+# this should show clean unless new work is in flight
 git -C ~/dev/home-infra status --short
 
 # Are the new models on the desktop?
@@ -246,8 +247,8 @@ repo `compose/nas/docker-compose.yml` — repo is intent, live is runtime truth;
 convergent per the sync contract in `home-infra-change-control`). This is a behavior change
 on the NAS → change control applies.
 
-The stanza (repo compose, uncommitted worktree — env summary; the authoritative env-var
-table lives in `home-infra-config-reference`):
+The stanza (repo compose, committed `ebc8e9e`/`8fcc49c` — env summary; the authoritative
+env-var table lives in `home-infra-config-reference`):
 
 | Env | Value |
 |---|---|
@@ -293,8 +294,9 @@ BRANCHES:
 PRECONDITIONS (all hard):
 1. Phase 3 EXPECTED met.
 2. **The `vault-indexer:latest` image ON THE NAS honors `STATE_FILE` and excludes `_raw/`.**
-   Both features are uncommitted repo changes (2026-07-02) and the live image (running 4d+)
-   likely predates them. If the deployed image lacks `STATE_FILE` support, the run below
+   Both features are committed in the repo (`ebc8e9e`, 2026-07-03) but the live image
+   (running since before that) likely predates them and needs a rebuild. If the deployed
+   image lacks `STATE_FILE` support, the run below
    would **silently write to `hashes.json` and corrupt LightRAG's state**. Verify first
    (read-only container run):
 
@@ -550,9 +552,10 @@ Checklist (spec Step 5 + doc debt):
    live runs neither"; update/annotate the lightrag-trading entry per Gate 0a.
 5. ADR status notes: ADR 0010/0011 get an "implemented YYYY-MM-DD" note; ADR 0001 already
    superseded by 0011 — verify the supersession is marked.
-6. Commit and get the still-uncommitted migration worktree (ADRs 0010–0012, spec,
-   compose, indexer.py changes, wiki-ingest.py per its own plan) into history — suggested
-   message per spec: `migrate RAG stack: LightRAG → MiniRAG, mxbai → BGE-M3, 8b → 14b`.
+6. ~~Commit the migration worktree (ADRs 0010–0012, spec, compose, indexer.py changes,
+   wiki-ingest.py) into history.~~ **Already done** — committed `ebc8e9e`/`521df55`
+   2026-07-03, well before cutover. This step is only relevant again if new
+   migration-related files accumulate uncommitted before Phase 5.
 7. If Phase 5 required a new MCP solution (menu items 2–4), write a new ADR for it.
 
 ---
@@ -625,8 +628,7 @@ retired state file survive — hence the retention rule in the fence below.
 
 ## Provenance and maintenance
 
-- Facts verified 2026-07-02 against repo state (commit 6cbd3a1 + uncommitted
-  MiniRAG-migration worktree changes: ADR 0010/0011/0012, `docs/specs/minirag-migration.md`,
+- Facts verified 2026-07-02 against repo state (commit 6cbd3a1 + committed (ebc8e9e/521df55/8fcc49c/34988d1) MiniRAG-migration changes: ADR 0010/0011/0012, `docs/specs/minirag-migration.md`,
   minirag stanza in `compose/nas/docker-compose.yml`, `STATE_FILE`/`_raw` changes in
   `vault-indexer/indexer.py`) and live containers observed via SSH 2026-07-02.
 - Explicitly UNVERIFIED as of 2026-07-02: MiniRAG memory footprint and image size; MiniRAG
@@ -639,7 +641,7 @@ retired state file survive — hence the retention rule in the fence below.
     `ssh -i ~/.ssh/agent_ed25519 agent@10.0.0.250 "sudo /usr/local/bin/docker ps -a --format '{{.Names}}\t{{.Status}}\t{{.Ports}}'" | grep -Ei 'lightrag|minirag|registry'`
   - Registry down: `curl -s --max-time 5 http://10.0.0.250:5000/v2/_catalog` (connection refused = down)
   - No MiniRAG storage yet: `ssh -i ~/.ssh/agent_ed25519 agent@10.0.0.250 "ls /volume1/docker/ai/minirag 2>&1"`
-  - Migration changes uncommitted: `git -C ~/dev/home-infra status --short`
+  - Migration changes committed, working tree clean: `git -C ~/dev/home-infra status --short`
   - Models absent/present on desktop: `ssh -i ~/.ssh/agent_ed25519 agent@10.0.0.243 "ollama list" | grep -Ei 'qwen2.5:14b|bge-m3'`
   - LightRAG baseline 369/379: `grep -n '369/379' ~/dev/home-infra/docs/specs/lightrag-vault-indexer.md`
 - Maintenance rule: after each executed phase, update section 1's table (this skill is the

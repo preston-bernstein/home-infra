@@ -23,8 +23,7 @@ Jargon used throughout (full vocabulary in `CONTEXT.md` at repo root):
   (lanes :11435 interactive, :11436 batch, :11437 jobs, :11438 embed). Never use raw `:11434`.
 - **ADR** — one-dense-paragraph architecture decision records in `docs/adr/0001`–`0012`.
 
-Repo history is short and fully known — five commits on `main` plus an uncommitted
-MiniRAG-migration worktree (as of 2026-07-02):
+Repo history is short and fully known — full `main` history as of 2026-07-03 (chronological):
 
 | Commit | Date | Subject |
 |---|---|---|
@@ -32,9 +31,22 @@ MiniRAG-migration worktree (as of 2026-07-02):
 | `e778699` | 2026-06-11 | Add vault-indexer implementation |
 | `f2565b4` | 2026-06-21 | Wire all Ollama consumers through ollama-resource-broker |
 | `3ec836f` | 2026-06-21 | Fix secrets hygiene, add `.env.example` files, ADRs 0008–0009 |
+| `654891a` | 2026-06-27 | Fail-hard on missing `LIGHTRAG_API_KEY`, expand `.gitignore` |
 | `6cbd3a1` | 2026-06-30 | Add embed-stack: Infinity SigLIP CPU server |
-| (branch) `654891a` | 2026-06-27 | Fail-hard on missing `LIGHTRAG_API_KEY` — **on `add-embed-stack` AND `origin/main` (origin/main tip IS 654891a); local `main` is a divergent rewrite without it** (see F5) |
-| (uncommitted) | ~2026-06-27+ | ADRs 0010–0012, `docs/specs/minirag-migration.md`, `wiki-ingest.py`, minirag compose service, crontab 2am→4am |
+| `33b7072` | 2026-06-30 | Merge pull request #1 from `add-embed-stack` |
+| `ebc8e9e` | 2026-07-03 | Wire MiniRAG into NAS compose, add migration ADRs 0010/0011 + spec |
+| `521df55` | 2026-07-03 | Add LLM Wiki compiled-layer: `wiki-ingest.py`, ADR 0012, CONTEXT.md glossary |
+| `bd90509` | 2026-07-03 | Add Claude Code skill library (this file and its siblings) |
+| `c14b0bb` | 2026-07-03 | Fix `wiki-ingest.py --semantic-lint` entry-point bug + `indexer.py` `status_filter` case (PR #2) |
+| `8fcc49c` | 2026-07-03 | Fix MiniRAG port conflict (`:9622`→`:9623`) and sync docs |
+| `04479fe` | 2026-07-03 | Fix vision-mcp `OLLAMA_HOST` code default to match broker port |
+| `aa0c589` | 2026-07-03 | Sync spec prose to committed 4am cron, close F14 commit-drift half |
+| `34988d1` | 2026-07-03 | Propagate MiniRAG `:9622`→`:9623` fix and other resolved gates repo-wide |
+
+**Note on `654891a`/local-main history:** for a window on 2026-07-03, local `main` and
+`origin/main` had diverged into unrelated histories (local recreated the early commits
+with different hashes, missing `654891a`'s fix). Reconciled by hard-resetting local `main`
+onto `origin/main` and replaying uncommitted work on top — see F5.
 
 ## Summary table
 
@@ -254,8 +266,8 @@ Chronological. "Settled" means: do not re-litigate without new evidence.
   even smaller model. Direction is consistent ("extraction quality bad"), but do not quote
   35% as the current production failure rate; it belongs to the 8b configuration. To
   re-measure, see `rag-evaluation-methodology`.
-- **Status:** **Open until the migration completes** (ADR 0010 itself is uncommitted;
-  MiniRAG is not deployed — see F12). LightRAG is being **replaced, not patched**.
+- **Status:** **Open until the migration completes** (ADR 0010 is committed `ebc8e9e`;
+  MiniRAG is not deployed live yet — see F12). LightRAG is being **replaced, not patched**.
 - **Lesson:** When a component's minimum viable model doesn't fit your hardware, tuning
   around it re-litigates physics. Swap for a component designed for your constraint
   (SLM-first). This is the founding decision of the stack's "frugal SLM-first" identity.
@@ -272,7 +284,7 @@ Chronological. "Settled" means: do not re-litigate without new evidence.
   files), stronger on long-form retrieval, fits in 16GB VRAM. Cost of switching is zero
   *because* the MiniRAG migration (F8) forces a full re-index anyway — the two decisions
   are deliberately coupled.
-- **Evidence:** `docs/adr/0011-bge-m3-over-mxbai.md` (supersedes ADR 0001); uncommitted
+- **Evidence:** `docs/adr/0011-bge-m3-over-mxbai.md` (supersedes ADR 0001); committed
   minirag service in `compose/nas/docker-compose.yml` has `EMBEDDING_MODEL=bge-m3` while
   the running lightrag service still has `mxbai-embed-large`.
 - **Status:** **Resolved by migration in flight** — decided, not yet live. As of 2026-07-02
@@ -345,11 +357,10 @@ Chronological. "Settled" means: do not re-litigate without new evidence.
      minirag moved to :9623, no longer blocked by this.
   4. Step 3 is explicitly TBD in the spec: lightrag-mcp ↔ MiniRAG API compatibility
      unverified.
-- **Status:** **OPEN — the hardest live problem** (ASSUMPTION, 2026-07-02 authoring pass;
-  not re-assessed since).
-  ADRs 0010/0011/0012, the migration spec, `wiki-ingest.py`, and the compose changes are
-  all **uncommitted** worktree state as of 2026-07-02 — the entire migration exists only
-  on the MacBook's disk.
+- **Status:** **OPEN — the hardest live problem.** ADRs 0010/0011/0012, the migration
+  spec, `wiki-ingest.py`, and the compose changes are all committed (`ebc8e9e`, `521df55`)
+  as of 2026-07-03 — the blocker now is purely the live deploy (image build, registry,
+  actual `docker compose up` on the NAS), not repo state.
 - **Do not** attempt to "clean up" the unused registry/minirag compose entries — they are
   the migration plan, not cruft. To execute the migration, use `minirag-migration-campaign`
   (the executable step-by-step home).
@@ -472,7 +483,7 @@ batch-insert/track_status, 0003 two-stage archive→delete, 0005 LibreChat on de
 ## Provenance and maintenance
 
 - Facts verified 2026-07-02 against repo state: `main` at commit `6cbd3a1` plus the
-  uncommitted MiniRAG-migration worktree changes (ADRs 0010–0012, migration spec,
+  committed (ebc8e9e/521df55/8fcc49c/34988d1) MiniRAG-migration changes (ADRs 0010–0012, migration spec,
   `wiki-ingest.py`, compose/crontab/indexer edits). Live-container facts (F11, F12, F14
   watchtower absence) are from `docker ps` observation over SSH on 2026-07-02
   (authoring-pass observation; not re-observed since) — **volatile; re-verify before

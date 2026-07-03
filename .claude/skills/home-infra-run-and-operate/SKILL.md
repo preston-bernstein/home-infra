@@ -194,7 +194,7 @@ never re-posted, but note the code re-archives only entries *missing* the stamp)
 | Service | Host path | Notes |
 |---|---|---|
 | LightRAG | `/volume1/docker/ai/lightrag/` (container `/app/data`; working dir `/app/data/rag_storage`) | the graph + vector store — never edit by hand |
-| MiniRAG | `/volume1/docker/ai/minirag/` | **only once deployed** — as of 2026-07-02 minirag exists in the (uncommitted) compose but is NOT running |
+| MiniRAG | `/volume1/docker/ai/minirag/` | **only once deployed** — minirag is committed in compose (`ebc8e9e`) but NOT running live yet |
 | Secrets | `/volume1/docker/ai/.env` | holds `LIGHTRAG_API_KEY` (and `TS_AUTHKEY`); never copy values anywhere |
 | Compose (live) | `/volume1/docker/ai/docker-compose.yml` | repo mirror: `compose/nas/docker-compose.yml` |
 
@@ -349,8 +349,7 @@ Read-only is always fine: `docker ps`, `docker logs`, `cat`, `ls`, `curl` GETs.
 
 ## Provenance and maintenance
 
-- Facts verified 2026-07-02 against repo state (commit 6cbd3a1 + uncommitted
-  MiniRAG-migration worktree changes: `wiki-ingest.py`, updated `indexer.py`/`crontab`,
+- Facts verified 2026-07-02 against repo state (commit 6cbd3a1 + committed (ebc8e9e/521df55/8fcc49c/34988d1) MiniRAG-migration changes: `wiki-ingest.py`, updated `indexer.py`/`crontab`,
   minirag in NAS compose) and live containers observed via SSH 2026-07-02.
 - Sources marked "project owner standing instructions" (agent SSH identity, service
   users, vault ownership, scp `-O` / rsync-blocked quirks) come from Preston's standing

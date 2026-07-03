@@ -289,8 +289,7 @@ guarantees only compiled pages reach the RAG Engine — never index `_raw/`.
 
 ## Provenance and maintenance
 
-- Facts verified 2026-07-02 against repo state (commit 6cbd3a1 + uncommitted
-  MiniRAG-migration worktree changes) and live containers observed via SSH 2026-07-02.
+- Facts verified 2026-07-02 against repo state (commit 6cbd3a1 + committed (ebc8e9e/521df55/8fcc49c/34988d1) MiniRAG-migration changes) and live containers observed via SSH 2026-07-02.
 - Sources: `vault-indexer/indexer.py` (API endpoints, auth header, statuses, batching),
   `docs/adr/0001,0002,0006,0007,0010,0011,0012`, `docs/specs/minirag-migration.md`,
   `compose/nas/docker-compose.yml`, `compose/desktop/docker-compose.yml`,

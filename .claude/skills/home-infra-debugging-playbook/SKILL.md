@@ -471,8 +471,7 @@ Each row below: **Cause → Experiment → Fix pointer → Story**.
 
 ## Provenance and maintenance
 
-- Facts verified 2026-07-02 against repo state (commit 6cbd3a1 + uncommitted
-  MiniRAG-migration worktree changes: ADRs 0010–0012, `docs/specs/minirag-migration.md`,
+- Facts verified 2026-07-02 against repo state (commit 6cbd3a1 + committed (ebc8e9e/521df55/8fcc49c/34988d1) MiniRAG-migration changes: ADRs 0010–0012, `docs/specs/minirag-migration.md`,
   `wiki-ingest.py`, minirag/registry compose entries) and live containers observed
   via SSH 2026-07-02 (lightrag Up on :9621, lightrag-trading on :9622,
   fashion-monitor containers Restarting, broker root returning 404).

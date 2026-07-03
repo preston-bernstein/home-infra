@@ -107,12 +107,12 @@ value is the contract; the code default is a trap if you run the script bare.
 | `llama3.2:3b` | LibreChat titleModel | `compose/desktop/librechat.yaml` |
 | `google/siglip-so400m-patch14-384` | Image embeddings (estate-scraper corpus) | `compose/desktop/embed-stack/docker-compose.yml` → infinity-siglip `--model-id` |
 
-### Migration target (NOT live — uncommitted worktree, ADRs 0010/0011)
+### Migration target (NOT live — committed, ADRs 0010/0011)
 
 | Model | Role | Configured in |
 |---|---|---|
-| `qwen2.5:14b` | MiniRAG LLM (replaces llama3.2:3b; 8b-class JSON extraction fails ~35% per ADR 0010) | uncommitted `compose/nas/docker-compose.yml` → minirag `LLM_MODEL` |
-| `bge-m3` | MiniRAG embeddings (replaces mxbai; 8192-token context vs mxbai degrading past ~1k — ADR 0011) | uncommitted `compose/nas/docker-compose.yml` → minirag `EMBEDDING_MODEL` |
+| `qwen2.5:14b` | MiniRAG LLM (replaces llama3.2:3b; 8b-class JSON extraction fails ~35% per ADR 0010) | `compose/nas/docker-compose.yml` → minirag `LLM_MODEL` |
+| `bge-m3` | MiniRAG embeddings (replaces mxbai; 8192-token context vs mxbai degrading past ~1k — ADR 0011) | `compose/nas/docker-compose.yml` → minirag `EMBEDDING_MODEL` |
 
 Both must be pulled on the desktop (`ollama pull qwen2.5:14b && ollama pull bge-m3`)
 before MiniRAG deploy — see `minirag-migration-campaign`.
@@ -127,8 +127,8 @@ UI menu with `fetch: true`, not a statement of what is pulled or fits in VRAM.
 ## 4. Per-service configuration
 
 "Where set" is the file in THIS repo; deployed copies live at the deploy paths in the
-preamble. **Production** = load-bearing today. **Experimental** = uncommitted /
-migration / not running.
+preamble. **Production** = load-bearing today. **Experimental** = migration target,
+not yet running live (may be committed to the repo already).
 
 ### 4.1 lightrag (NAS :9621) — production
 
@@ -176,7 +176,7 @@ compose sets the first three.
 | `LIGHTRAG_API_KEY` | `changeme` | `${LIGHTRAG_API_KEY}` | **Code default is `changeme` — the compose value is mandatory.** (`changeme` was once committed live — see `home-infra-failure-archaeology`) |
 | `VAULT_PATH` | `/vault` | `/vault` | Vault mount (host `/volume1/obsidian-vault`, ro) |
 | `STATE_DIR` | `/state` | (not set — default) | Directory for state + log (host `/volume1/docker/ai/vault-indexer`) |
-| `STATE_FILE` | `${STATE_DIR}/hashes.json` | (not set — default) | Hash-state JSON path. **Override semantics:** setting `STATE_FILE` repoints ONLY the hash state — the log stays at `${STATE_DIR}/indexer.log`. This is how the migration runs a parallel index (`STATE_FILE=/state/hashes-minirag.json` + `LIGHTRAG_URL` → MiniRAG) without touching the production `hashes.json`. Uncommitted-worktree feature. |
+| `STATE_FILE` | `${STATE_DIR}/hashes.json` | (not set — default) | Hash-state JSON path. **Override semantics:** setting `STATE_FILE` repoints ONLY the hash state — the log stays at `${STATE_DIR}/indexer.log`. This is how the migration runs a parallel index (`STATE_FILE=/state/hashes-minirag.json` + `LIGHTRAG_URL` → MiniRAG) without touching the production `hashes.json`. Committed `ebc8e9e`. |
 
 Hardcoded constants in `indexer.py` — **changing any of these requires editing the file
 and rebuilding the `vault-indexer:latest` image** (see `home-infra-build-and-deploy`);
@@ -189,7 +189,7 @@ they are NOT env-tunable:
 | `TRACK_TIMEOUT_S` | `60` | Max wait polling `track_status` per batch (partial results saved on timeout) |
 | `ARCHIVE_DAYS` | `30` | Two-stage delete: files missing from vault are archived, auto-deleted after 30 days (ADR 0003) |
 | `LOG_MAX_BYTES` | `1048576` (1 MiB) | Rotating log cap, `backupCount=1` |
-| `EXCLUDE_DIRS` | `{.agents, .claude, .obsidian, _raw}` | Top-level vault dirs skipped (`_raw` added in uncommitted worktree — ADR 0012) |
+| `EXCLUDE_DIRS` | `{.agents, .claude, .obsidian, _raw}` | Top-level vault dirs skipped (`_raw` added, committed `ebc8e9e` — ADR 0012) |
 
 CLI: no args = index run; `--cleanup` = interactive archived-doc review/delete
 (operations: `home-infra-run-and-operate`).
@@ -399,7 +399,7 @@ Any repo-vs-live mismatch you find: record it in the drift register
 
 ## Provenance and maintenance
 
-- Facts verified 2026-07-02 against repo state (commit 6cbd3a1 + uncommitted MiniRAG-migration worktree changes: modified `compose/nas/docker-compose.yml`, `vault-indexer/indexer.py`, `vault-indexer/crontab`; untracked `wiki-ingest.py`, ADRs 0010–0012, `docs/specs/minirag-migration.md`) and live containers observed via SSH 2026-07-02 (2026-07-02 authoring-pass observations; not re-observed since).
+- Facts verified 2026-07-02 against repo state (commit 6cbd3a1 + committed (ebc8e9e/521df55/8fcc49c/34988d1) MiniRAG-migration changes: modified `compose/nas/docker-compose.yml`, `vault-indexer/indexer.py`, `vault-indexer/crontab`; untracked `wiki-ingest.py`, ADRs 0010–0012, `docs/specs/minirag-migration.md`) and live containers observed via SSH 2026-07-02 (2026-07-02 authoring-pass observations; not re-observed since).
 - Sources read directly: `compose/nas/docker-compose.yml`, `compose/nas/nginx.conf`, `compose/nas/.env.example`, `compose/desktop/docker-compose.yml`, `compose/desktop/.env.example`, `compose/desktop/librechat.yaml`, `compose/desktop/embed-stack/docker-compose.yml`, root `.env.example`, `vault-indexer/indexer.py`, `vault-indexer/crontab`, `vault-indexer/Dockerfile`, `wiki-ingest.py`, `mcp/vision/server.py`, `mcp/lightrag/Dockerfile`, `docs/adr/0007-one-service-per-mcp-nginx.md`, `docs/specs/minirag-migration.md`.
 - Items labeled UNVERIFIED above: nginx live deployment mechanism on the NAS; proton-email-mcp code defaults (source off-repo); ports of caddy/authentik/cloudflared/tdarr. The repo↔live sync contract is a labeled ASSUMPTION.
 - Re-verification: run the section 7 one-liners; every table row is covered by one of them. This skill decays fastest — re-run section 7 whenever the answer matters, and always after any compose change or migration step.

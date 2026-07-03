@@ -41,7 +41,7 @@ Read the one-paragraph ADR files in `/Users/prestonbernstein/dev/home-infra/docs
 
 7. **LibreChat over Open WebUI** (ADR 0004): Open WebUI has no MCP client; MCP tool use is a first-class requirement. (But see drift #11 — an open-webui container is still running on the NAS.)
 
-8. **MiniRAG over LightRAG — the in-flight migration** (ADRs 0010, 0011, uncommitted in the worktree as of 2026-07-02). LightRAG's entity extraction needs structured JSON the 16GB-VRAM-fitting models can't reliably produce (~35% doc failure measured on llama3.1:8b; HKUDS recommends 32b+, which doesn't fit). MiniRAG (same lab) is SLM-first, near-identical API, so lightrag-mcp is expected (UNVERIFIED — spec Step 3 is TBD) to be reusable. Embeddings switch mxbai-embed-large → bge-m3 at the same time (ADR 0011: mxbai degrades past ~1k tokens; bge-m3 handles 8192; free switch since full re-index anyway). Execution lives in `minirag-migration-campaign`.
+8. **MiniRAG over LightRAG — the in-flight migration** (ADRs 0010, 0011, committed `ebc8e9e`; live deploy still pending). LightRAG's entity extraction needs structured JSON the 16GB-VRAM-fitting models can't reliably produce (~35% doc failure measured on llama3.1:8b; HKUDS recommends 32b+, which doesn't fit). MiniRAG (same lab) is SLM-first, near-identical API, so lightrag-mcp is expected (UNVERIFIED — spec Step 3 is TBD) to be reusable. Embeddings switch mxbai-embed-large → bge-m3 at the same time (ADR 0011: mxbai degrades past ~1k tokens; bge-m3 handles 8192; free switch since full re-index anyway). Execution lives in `minirag-migration-campaign`.
 
 ## Invariants — must hold at all times
 
@@ -95,8 +95,8 @@ This table is the single home for repo-vs-live-vs-docs divergence (sibling skill
 
 ## Provenance and maintenance
 
-- Facts verified 2026-07-02 against repo state (commit 6cbd3a1 + uncommitted MiniRAG-migration worktree changes) and live containers observed via SSH 2026-07-02.
-- ADR distillations from `docs/adr/0001..0012` (0010–0012 uncommitted); vocabulary from `CONTEXT.md`; sync contract and lightrag-trading interpretation are labeled ASSUMPTIONS.
+- Facts verified 2026-07-02 against repo state (commit 6cbd3a1 + committed (ebc8e9e/521df55/8fcc49c/34988d1) MiniRAG-migration changes) and live containers observed via SSH 2026-07-02.
+- ADR distillations from `docs/adr/0001..0012` (all committed); vocabulary from `CONTEXT.md`; sync contract and lightrag-trading interpretation are labeled ASSUMPTIONS.
 - Re-verification one-liners (run all before trusting volatile rows):
   - Repo state: `git -C /Users/prestonbernstein/dev/home-infra log --oneline -5 && git -C /Users/prestonbernstein/dev/home-infra status --short`
   - NAS live containers (drift #8, #11, weak points): `ssh -i ~/.ssh/agent_ed25519 agent@10.0.0.250 'sudo /usr/local/bin/docker ps --format "{{.Names}}\t{{.Ports}}\t{{.Status}}"'`

@@ -124,7 +124,7 @@ If any part of this project is ever published, open-sourced, or even described i
 
 ## Provenance and maintenance
 
-- Facts verified 2026-07-02 against repo state (commit 6cbd3a1 + uncommitted MiniRAG-migration worktree changes: ADRs 0010–0012, `docs/specs/minirag-migration.md`, untracked `wiki-ingest.py`, minirag service in `compose/nas/docker-compose.yml`) and live containers observed via SSH 2026-07-02.
+- Facts verified 2026-07-02 against repo state (commit 6cbd3a1 + committed (ebc8e9e/521df55/8fcc49c/34988d1) MiniRAG-migration changes: ADRs 0010–0012, `docs/specs/minirag-migration.md`, untracked `wiki-ingest.py`, minirag service in `compose/nas/docker-compose.yml`) and live containers observed via SSH 2026-07-02.
 - "Advancing SOTA" framing is a labeled ASSUMPTION (2026-07-02 authoring pass; not re-confirmed since); ranked ordering of problems is this author's judgment, labeled as such.
 - Model note: `wiki-ingest.py` ingest/lint uses `INGEST_MODEL` default `qwen3:8b` via broker :11435; the RAG Engine models are separate (`llama3.2:3b` committed LightRAG / `qwen2.5:14b` planned MiniRAG). Do not conflate them in any claim.
 - Re-verification commands (run before trusting a volatile fact):
