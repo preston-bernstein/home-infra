@@ -170,11 +170,14 @@ docker logs -f vault-indexer
 
 ## API Key Rotation
 
-Replace `CHANGE_ME` before exposing LightRAG beyond LAN:
+Already rotated off `changeme` (see Status above); compose now reads `LIGHTRAG_API_KEY`
+from the NAS's `.env` (`${LIGHTRAG_API_KEY}` in `compose/nas/docker-compose.yml`), not a
+hardcoded value — rotation is a `.env` edit, not a compose edit. Procedure for rotating
+again in the future:
 
 ```bash
 openssl rand -hex 32   # generate key
-# Update LIGHTRAG_API_KEY in /volume1/docker/ai/docker-compose.yml
+# Update LIGHTRAG_API_KEY in /volume1/docker/ai/.env on the NAS (never in compose itself)
 # Update in aichat config, Claude Code settings.json, LibreChat env
 docker compose restart lightrag vault-indexer
 curl -H "X-API-Key: <new-key>" http://10.0.0.250:9621/documents/pipeline_status

@@ -173,7 +173,7 @@ compose sets the first three.
 | Env var | Code default | Compose value | What it does |
 |---|---|---|---|
 | `LIGHTRAG_URL` | `http://lightrag:9621` | `http://lightrag:9621` | RAG Engine base URL (docker-network hostname) |
-| `LIGHTRAG_API_KEY` | `changeme` | `${LIGHTRAG_API_KEY}` | **Code default is `changeme` — the compose value is mandatory.** (`changeme` was once committed live — see `home-infra-failure-archaeology`) |
+| `LIGHTRAG_API_KEY` | none — fail-hard | `${LIGHTRAG_API_KEY}` | **No code default: `os.environ.get("LIGHTRAG_API_KEY") or sys.exit(...)`.** Missing env var crashes the container instead of running insecurely. (A soft `changeme` default was once committed live — fixed `654891a`, reached local `main` 2026-07-03 — see `home-infra-failure-archaeology` F5) |
 | `VAULT_PATH` | `/vault` | `/vault` | Vault mount (host `/volume1/obsidian-vault`, ro) |
 | `STATE_DIR` | `/state` | (not set — default) | Directory for state + log (host `/volume1/docker/ai/vault-indexer`) |
 | `STATE_FILE` | `${STATE_DIR}/hashes.json` | (not set — default) | Hash-state JSON path. **Override semantics:** setting `STATE_FILE` repoints ONLY the hash state — the log stays at `${STATE_DIR}/indexer.log`. This is how the migration runs a parallel index (`STATE_FILE=/state/hashes-minirag.json` + `LIGHTRAG_URL` → MiniRAG) without touching the production `hashes.json`. Committed `ebc8e9e`. |
