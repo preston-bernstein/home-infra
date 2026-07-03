@@ -3,7 +3,7 @@ import os
 import httpx
 from fastmcp import FastMCP
 
-OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11435")
 VISION_MODEL = os.getenv("VISION_MODEL", "llava:13b")
 LIBRECHAT_HOST = os.getenv("LIBRECHAT_HOST", "http://localhost:3080")
 MCP_PORT = int(os.getenv("MCP_PORT", "3003"))

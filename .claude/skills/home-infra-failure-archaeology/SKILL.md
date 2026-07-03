@@ -140,9 +140,10 @@ Chronological. "Settled" means: do not re-litigate without new evidence.
   (non-negotiable; rationale and enforcement in `home-infra-change-control`). Broker 503s
   when the GPU is busy; clients must retry (see `wiki-ingest.py` retry ladder
   10/30/60/120/180s).
-- **Residual trap:** `mcp/vision/server.py:6` still has code default
-  `OLLAMA_HOST=http://localhost:11434`; the compose env override to `:11435` is the
-  contract. Reading code defaults alone will mislead you.
+- **Residual trap (CLOSED 2026-07-03):** `mcp/vision/server.py:6` had a code default of
+  `OLLAMA_HOST=http://localhost:11434`, contradicting the standing broker-only invariant
+  even though the compose env override to `:11435` made it a no-op live. Default corrected
+  to match compose exactly.
 - **Lesson:** Invariants adopted mid-project leave stale defaults behind in code. Compose
   env is the contract; code defaults are archaeology.
 
