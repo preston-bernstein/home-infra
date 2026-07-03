@@ -128,7 +128,7 @@ CMD ["crond", "-f"]
 
 crontab file:
 ```
-0 2 * * * python /app/indexer.py >> /state/indexer.log 2>&1
+0 4 * * * python /app/indexer.py >> /state/indexer.log 2>&1
 ```
 
 Build: `docker buildx build --platform linux/amd64 -t vault-indexer:latest ./vault-indexer/`
@@ -159,7 +159,7 @@ vault-indexer:
 ## First run
 
 ```bash
-# After deploy — runs immediately, bypasses 2am cron
+# After deploy — runs immediately, bypasses 4am cron
 docker exec vault-indexer python /app/indexer.py
 
 # Watch progress (will take several hours for 1,511 files)

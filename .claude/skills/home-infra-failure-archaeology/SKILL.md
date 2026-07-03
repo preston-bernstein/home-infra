@@ -55,7 +55,7 @@ Chronological. "Settled" means: do not re-litigate without new evidence.
 | F11 | `lightrag-trading` live on NAS :9622 — in no repo file; conflicts with planned minirag port | OPEN MYSTERY — flag, do not touch |
 | F12 | registry + minirag in repo compose but not running live — migration stalled | OPEN — the hardest live problem |
 | F13 | `docs/specs/ai-stack.md` rot — written as plan, never synced after execution | OPEN process failure |
-| F14 | Crontab 2am→4am uncommitted; watchtower also at 4am | Minor, open |
+| F14 | Crontab 2am→4am; watchtower also at 4am | Commit drift CLOSED 2026-07-03; 4am overlap still open |
 | F15 | `indexer.py --cleanup` sends uppercase `"FAILED"` → 422 on current LightRAG; failed-doc census silently errors | CLOSED — fixed 2026-07-03 |
 
 ---
@@ -379,20 +379,22 @@ Chronological. "Settled" means: do not re-litigate without new evidence.
   banner. A doc without a sync trigger will rot; ADR-per-decision alone doesn't keep
   narrative specs true.
 
-## F14 — Crontab 2am→4am uncommitted; watchtower also at 4am (minor)
+## F14 — Crontab 2am→4am; watchtower also at 4am (minor)
 
-- **Symptom:** `vault-indexer/crontab` in the worktree says `0 4 * * *`; committed `main`
-  still says `0 2 * * *` (`git show main:vault-indexer/crontab`), and spec prose still
-  references the 2am cron (`docs/specs/lightrag-vault-indexer.md:164`).
+- **Symptom (as of 2026-07-02):** `vault-indexer/crontab` in the worktree said `0 4 * * *`;
+  committed `main` still said `0 2 * * *`, and spec prose still referenced the 2am cron.
 - **Timing coincidence to know about:** watchtower's schedule in the same compose is
-  `--schedule "0 0 4 * * *"` — the **same 4am hour** as the new indexer cron. If watchtower
+  `--schedule "0 0 4 * * *"` — the **same 4am hour** as the indexer cron. If watchtower
   updates/restarts the lightrag (or future minirag) container while the nightly index run
   is mid-flight, the run fails or half-completes. This collision is a *risk inference*
   from the two schedules, not an observed incident (UNVERIFIED as an actual failure).
   Note: watchtower was **not observed running** on the NAS 2026-07-02 despite being in
   compose, which currently makes the collision theoretical twice over.
-- **Status:** Minor, open — the change is uncommitted, the spec prose is stale, and the
-  4am/4am overlap is unexamined.
+- **Status (2026-07-03):** The commit/spec-prose drift half is CLOSED — `vault-indexer/crontab`
+  (`0 4 * * *`) and the spec prose are now committed and consistent. The 4am/4am
+  **overlap itself is still open and unexamined** — this is a live-scheduling decision
+  (move one of the two times), not a doc fix; route through `home-infra-change-control`
+  before touching either schedule.
 - **Lesson:** When moving a cron, grep the compose for every other scheduler in the same
   window before picking the new time.
 
@@ -446,7 +448,7 @@ batch-insert/track_status, 0003 two-stage archive→delete, 0005 LibreChat on de
 - F10 — `wiki-ingest.py --semantic-lint` entry-point bug. **CLOSED 2026-07-03.**
 - F11 — `lightrag-trading` on :9622 — undocumented; ask Preston.
 - F13 — `ai-stack.md` rot.
-- F14 — crontab change uncommitted; 4am watchtower overlap unexamined.
+- F14 — 4am watchtower/indexer overlap still unexamined (commit drift closed 2026-07-03).
 - F15 — `indexer.py --cleanup` failed-doc census silently errors (uppercase `status_filter`). **CLOSED 2026-07-03.**
 
 ## When NOT to use this skill
