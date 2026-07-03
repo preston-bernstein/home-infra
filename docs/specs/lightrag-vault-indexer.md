@@ -184,15 +184,18 @@ curl -H "X-API-Key: <new-key>" http://10.0.0.250:9621/documents/pipeline_status
 
 ## TODO
 
-- [ ] **PREREQ:** `ollama pull mxbai-embed-large`, update compose, restart lightrag, verify
-- [ ] Write `vault-indexer/indexer.py`
-- [ ] Write `vault-indexer/crontab`
-- [ ] Build image, transfer to NAS, update compose
-- [ ] Run initial index: `docker exec vault-indexer python /app/indexer.py`
-- [ ] Monitor first run: `docker logs -f vault-indexer`
-- [ ] Rotate LightRAG API key off `CHANGE_ME`
-- [ ] Decide Automobile/ sensitivity classification
-- [ ] Remove `llama3.1:70b` from desktop if not needed
+This list predates the vault-indexer actually being built and deployed; most of it is
+done. Updated 2026-07-03 against the Status section above and `docs/adr/0011`.
+
+- [x] ~~**PREREQ:** `ollama pull mxbai-embed-large`, update compose, restart lightrag, verify~~ — done historically (lightrag ran mxbai in production); superseded by the MiniRAG migration's move to `bge-m3` (ADR 0011)
+- [x] Write `vault-indexer/indexer.py`
+- [x] Write `vault-indexer/crontab`
+- [x] Build image, transfer to NAS, update compose
+- [x] Run initial index: `docker exec vault-indexer python /app/indexer.py`
+- [x] Monitor first run: `docker logs -f vault-indexer`
+- [x] Rotate LightRAG API key off `CHANGE_ME`
+- [x] Decide Automobile/ sensitivity classification — resolved by the v1 design decision (see Sensitivity section above): no per-category tagging, all vault files land in one index
+- [ ] Remove `llama3.1:70b` from desktop if not needed — live-machine fact, unverified from the repo; check with Preston
 
 ---
 
