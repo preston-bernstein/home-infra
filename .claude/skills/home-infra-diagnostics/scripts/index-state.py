@@ -8,6 +8,12 @@ STRICTLY READ-ONLY. Fetches the indexer state file from the NAS over SSH
   - files without a doc_id (will be retried next indexer run)
   - with --failed: the RAG Engine's failed-document list via /documents/paginated
 
+WARNING (found 2026-07-03): --failed only works against LightRAG. MiniRAG has no
+/documents/paginated endpoint (confirmed via its /openapi.json — see
+home-infra-failure-archaeology F12) — pointing --rag-url at MiniRAG's :9623 with
+--failed will 404. --state-file alone (no --failed) works fine against either engine's
+state file since that's read over SSH, not the RAG Engine API.
+
 Secrets: LIGHTRAG_API_KEY from env if set, else read at runtime from
 /volume1/docker/ai/.env on the NAS. Never printed, never stored.
 
@@ -15,9 +21,9 @@ stdlib only — no pip installs needed.
 
 Usage:
   ./index-state.py                                  # state summary
-  ./index-state.py --failed                         # + query RAG Engine for failed docs
+  ./index-state.py --failed                         # + query RAG Engine for failed docs (LightRAG only, see WARNING)
   ./index-state.py --state-file /volume1/docker/ai/vault-indexer/hashes-minirag.json
-                                                    # during MiniRAG migration
+                                                    # during MiniRAG migration (state only; --failed won't work)
 """
 import argparse
 import json
@@ -159,9 +165,9 @@ def main() -> int:
     ap.add_argument("--failed", action="store_true",
                     help="also query the RAG Engine for failed documents")
     ap.add_argument("--rag-url", default=DEFAULT_RAG_URL,
-                    help=f"RAG Engine base URL (default {DEFAULT_RAG_URL}; "
-                         "for the MiniRAG parallel index use the port resolved at "
-                         "migration Gate 0a — :9622 is lightrag-trading as of 2026-07-02)")
+                    help=f"RAG Engine base URL (default {DEFAULT_RAG_URL}). MiniRAG is "
+                         "http://10.0.0.250:9623, but --failed will 404 there — see the "
+                         "module WARNING; :9622 is lightrag-trading, unrelated, do not use")
     ap.add_argument("--json", action="store_true", help="dump raw state JSON to stdout")
     args = ap.parse_args()
 

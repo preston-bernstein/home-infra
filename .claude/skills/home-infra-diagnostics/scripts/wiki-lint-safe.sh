@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 # wiki-lint-safe.sh — run the LLM Wiki lint WITHOUT accidentally triggering an ingest.
 #
-# WHY THIS WRAPPER EXISTS: wiki-ingest.py has a known entry-point bug (see
-# home-infra-failure-archaeology): running `python3 wiki-ingest.py --semantic-lint`
-# ALONE also runs a full ingest of _raw/ captures — captures get processed and
-# DELETED, which is destructive if you only wanted a lint. The safe semantic-lint
-# invocation is `--lint --semantic-lint` together (lint_only=true short-circuits
-# the ingest branch).
+# HISTORY (see home-infra-failure-archaeology F10): wiki-ingest.py used to have an
+# entry-point bug where `python3 wiki-ingest.py --semantic-lint` ALONE also ran a
+# full ingest of _raw/ captures — destructive if you only wanted a lint. That bug
+# was fixed 2026-07-03 (PR #2, commit c14b0bb); `--semantic-lint` alone is now safe
+# on its own. This wrapper still calls `--lint --semantic-lint` together, which
+# remains correct and harmless either way — kept for explicitness and because typing
+# `./wiki-lint-safe.sh --semantic` is a smaller surface for a typo than the two-flag
+# form. Not required for safety anymore, but no reason to remove it.
 #
 # Usage:
 #   ./wiki-lint-safe.sh              # structural lint only (orphans, broken wikilinks)
@@ -35,8 +37,7 @@ PY="$REPO/.venv/bin/python3"
 
 case "${1:-}" in
   --semantic)
-    # SAFE combination: --lint forces lint_only=true, which disables the buggy
-    # ingest branch that --semantic-lint alone would trigger.
+    # --lint --semantic-lint together: correct and harmless (see header history note).
     exec "$PY" "$INGEST_SCRIPT" --lint --semantic-lint
     ;;
   "")
@@ -44,7 +45,6 @@ case "${1:-}" in
     ;;
   *)
     echo "Usage: $0 [--semantic]" >&2
-    echo "Never call wiki-ingest.py --semantic-lint without --lint unless you INTEND to ingest _raw/ captures." >&2
     exit 2
     ;;
 esac

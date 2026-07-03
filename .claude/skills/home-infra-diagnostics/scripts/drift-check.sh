@@ -50,7 +50,7 @@ check_pair() { # $1 label  $2 host  $3 remote-path  $4 repo-path  $5 sudo-prefix
   printf -- '--- Interpretation hints ---\n'
   case "$label" in
     *NAS*)
-      printf '* minirag/registry present in repo but not live = EXPECTED while the MiniRAG migration is pending (see minirag-migration-campaign).\n'
+      printf '* registry present in repo but not live = EXPECTED (Route B chosen, see minirag-migration-campaign Gate 0c). minirag itself was deployed 2026-07-03 and should now match repo — if it still shows as drift/missing, that is a real regression, not expected.\n'
       printf '* Services in live but not repo (e.g. lightrag-trading, open-webui, immich, financial-pipeline) may live in OTHER compose files or repos — check /volume1/docker/*/docker-compose.yml before assuming drift in THIS file.\n'
       ;;
     *desktop*)

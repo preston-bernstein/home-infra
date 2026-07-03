@@ -143,10 +143,11 @@ Diffs repo compose files against `ssh ... cat` of the live ones
 ./wiki-lint-safe.sh --semantic   # + LLM lint: CONTRADICTION / STALE / MISSING-LINK
 ```
 
-Exists because of a live bug: `wiki-ingest.py --semantic-lint` ALONE also runs a full
-ingest (processes and **deletes** `_raw/` captures). The wrapper always passes `--lint`,
-which short-circuits the ingest branch (verified against the entry point in
-`wiki-ingest.py`). Full story: `home-infra-failure-archaeology`.
+Originally written around a bug where `wiki-ingest.py --semantic-lint` ALONE also ran a
+full ingest (processes and **deletes** `_raw/` captures) — **fixed 2026-07-03** (PR #2),
+`--semantic-lint` alone is safe on its own now. The wrapper still passes `--lint` too,
+which remains correct and harmless either way; kept for explicitness. Full story:
+`home-infra-failure-archaeology` F10 (closed).
 
 ### Interpretation guide
 
