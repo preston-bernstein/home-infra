@@ -55,3 +55,27 @@ _Avoid_: proxy auth (generic), middleware auth
 **Access Group**:
 One of three Authentik user groups controlling which services a user can reach: `admin` (Preston only), `household` (wife — most services), `social` (parents and friends — limited services).
 _Avoid_: role, permission level
+
+**RAG Engine**:
+The service that builds and queries an entity graph + vector store from vault content. Accessed by LibreChat agents via lightrag-mcp. Currently migrating from LightRAG to MiniRAG — see ADR 0010.
+_Avoid_: vector database, search index, knowledge base (too generic)
+
+**Vault Indexer**:
+The nightly service (`vault-indexer`) that reads the vault, strips Obsidian syntax, and POSTs to the RAG Engine. Hash-based incremental — only changed files are re-indexed. Excludes `_raw/` (staging) from indexing — only compiled wiki pages reach the RAG Engine.
+_Avoid_: indexer, ETL, pipeline
+
+**Wiki**:
+The compiled, LLM-maintained markdown collection living at `wiki/` inside the vault. The persistent, compounding artifact produced by Ingest. What the RAG Engine actually indexes. Distinct from raw vault notes or Captures.
+_Avoid_: knowledge base, notes, second brain
+
+**Capture**:
+A file dropped into `_raw/` awaiting Ingest. Immutable after being placed there; deleted once promoted to wiki pages. Includes article clips, paper summaries, and Q&A captures (named `qa-YYYY-MM-DD-topic.md`).
+_Avoid_: raw source, input, note
+
+**Ingest**:
+The manual operation — triggered via Claude Code — that reads one or more Captures, creates or updates wiki pages, writes cross-references, and deletes the Captures. Followed immediately by Lint.
+_Avoid_: index, process, import
+
+**Lint**:
+A health check run automatically after every Ingest. Scans the wiki for orphan pages, stale claims, contradictions, and missing cross-references. Uses a local model (Ollama broker `:11436`).
+_Avoid_: validate, check, audit
