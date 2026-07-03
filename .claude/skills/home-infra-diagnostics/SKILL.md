@@ -38,14 +38,20 @@ Checks in order: ping both machines → SSH both → broker lanes (:11435/:11436
 → NAS containers → RAG Engine `/health` + `pipeline_status` → lightrag-mcp :3002 → desktop
 containers.
 
-### Interpretation guide (healthy baseline as of 2026-07-02)
+### Interpretation guide (healthy baseline as of 2026-07-02 — STALE, see caveat)
 
-Live-tested 2026-07-02: `22 PASS, 4 WARN, 2 FAIL` — the 4 WARNs below are the expected
-steady-state; the 2 FAILs were a real transient (see broker note).
+Live-tested 2026-07-02: `22 PASS, 4 WARN, 2 FAIL` — the 4 WARNs below were the expected
+steady-state at that time; the 2 FAILs were a real transient (see broker note). **This
+count is now outdated** on two fronts: the script gained a new MiniRAG `/health` check
+section 2026-07-03, and minirag itself went from not-running to deployed-and-healthy the
+same day (see `home-infra-failure-archaeology` F12) — re-run the script for a current
+baseline rather than trusting these numbers.
 
 **Known-benign WARNs (do not chase):**
-- `registry` / `minirag` in repo compose but not running — expected until the MiniRAG
-  migration executes (see `minirag-migration-campaign`).
+- `registry` in repo compose but not running — expected, Route B doesn't need it
+  (see `minirag-migration-campaign` Gate 0c). `minirag` itself should now show as a PASS
+  (`/health` -> 200), not this WARN, if the migration is still at the state this session
+  left it in.
 - `lightrag-trading` running on :9622 — undocumented in this repo (minirag moved to
   :9623 2026-07-03, so it no longer conflicts). Flag only; confirm ownership with
   Preston. Never touch it.
@@ -177,7 +183,8 @@ which short-circuits the ingest branch (verified against the entry point in
 
 - Facts verified 2026-07-02 against repo commit 6cbd3a1 + committed (ebc8e9e/521df55/8fcc49c/34988d1) MiniRAG-migration, and against live machines via read-only SSH.
 - Live-tested 2026-07-02: `stack-health.sh` full run (22 PASS / 4 WARN / 2 FAIL — broker
-  transient documented above); `index-state.py` API-quirk behavior (lowercase
+  transient documented above; **stale as of 2026-07-03**, see §1 caveat — the script
+  gained a MiniRAG check and minirag itself is now deployed); `index-state.py` API-quirk behavior (lowercase
   `status_filter`, `page_size>=10`) verified against live LightRAG by the original author;
   `drift-check.sh` and `wiki-lint-safe.sh` syntax-checked (`bash -n`) — full live run of
   these two is UNVERIFIED as of 2026-07-02.

@@ -69,6 +69,10 @@ Never SSH as `preston`. The API key `LIGHTRAG_API_KEY` lives ONLY in
 # Which RAG/migration containers exist, on which ports?
 $NAS "$DK ps -a --format '{{.Names}}\t{{.Status}}\t{{.Ports}}'" | grep -Ei 'lightrag|minirag|registry|vault-indexer'
 
+# Is minirag actually up and healthy right now? (use /health, NOT /documents/pipeline_status
+# - that endpoint doesn't exist on MiniRAG, see Phase 3 API SURFACE DIFFERENCE note)
+curl -s --max-time 5 http://10.0.0.250:9623/health   # connection refused/timeout = not up
+
 # Has MiniRAG ever written storage on the NAS?
 $NAS "ls -la /volume1/docker/ai/minirag 2>&1"          # 'No such file' = never deployed
 

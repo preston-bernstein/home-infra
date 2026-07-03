@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # stack-health.sh — read-only health sweep of the Personal AI Stack.
 # Checks, in order: host reachability, SSH, broker lanes, NAS containers,
-# RAG Engine pipeline, lightrag-mcp, desktop containers.
+# RAG Engine pipeline, MiniRAG (migration), lightrag-mcp, desktop containers.
 #
 # STRICTLY READ-ONLY: pings, curl GETs, `docker ps`, `cat`. Never restarts,
 # stops, or mutates anything.
@@ -116,7 +116,7 @@ if [ "$NAS_SSH" = 1 ]; then
     done
     # Known live-but-undocumented / other-repo containers:
     if printf '%s\n' "$NAS_PS" | grep -q '^lightrag-trading	'; then
-      warn "lightrag-trading is running on :9622 — undocumented in this repo; repo compose assigns :9622 to minirag (PORT CONFLICT). Do not touch; confirm ownership with Preston. See home-infra-architecture-contract drift register."
+      warn "lightrag-trading is running on :9622 — undocumented in this repo; ownership unknown (repo compose assigns minirag to :9623, no longer conflicts). Do not touch; confirm ownership with Preston. See home-infra-architecture-contract drift register."
     fi
     if printf '%s\n' "$NAS_PS" | grep -E '^fashion-monitor-(mcp-server|dashboard)' | grep -q Restarting; then
       warn "fashion-monitor containers crash-looping — known-benign for THIS stack; owned by the fashion-monitor repo, not home-infra."
@@ -161,6 +161,23 @@ if [ "$NAS_UP" = 1 ]; then
   fi
 else
   warn "NAS unreachable — skipped RAG Engine checks"
+fi
+
+# ---------------------------------------------------------------- MiniRAG (migration)
+section "MiniRAG (NAS :9623, parallel to production LightRAG)"
+if [ "$NAS_UP" = 1 ]; then
+  MCODE=$($CURL "http://$NAS:9623/health" 2>/dev/null)
+  if [ "$MCODE" = "200" ]; then
+    pass "minirag /health -> 200 (no auth required; migration component, not yet indexed/cut over)"
+  elif [ "$MCODE" = "000" ]; then
+    warn "minirag :9623 no response — EXPECTED if migration not yet deployed to this point; see minirag-migration-campaign. If it was previously up, check: ssh agent@$NAS 'sudo /usr/local/bin/docker logs --tail 50 minirag'"
+  else
+    warn "minirag /health -> HTTP $MCODE (expected 200)"
+  fi
+  # No pipeline_status check here: MiniRAG has no such endpoint (confirmed 2026-07-03 via
+  # /openapi.json — see home-infra-failure-archaeology F12). Do not add one by analogy.
+else
+  warn "NAS unreachable — skipped MiniRAG checks"
 fi
 
 # ---------------------------------------------------------------- lightrag-mcp
