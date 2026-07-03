@@ -312,7 +312,8 @@ Reading the results:
   manual index run (the indexer would skip itself anyway).
 - As of 2026-07-02 the NAS also shows `lightrag-trading` on `:9622` — it appears in NO
   repo file. **Flag it, confirm ownership with Preston before touching anything on
-  :9622** (the uncommitted compose assigns :9622 to minirag — conflict, unresolved).
+  :9622** (repo minirag moved to `:9623` 2026-07-03, so it no longer contests this port —
+  `lightrag-trading`'s own ownership is still unexplained).
 - Symptom → cause chasing beyond this screen: switch to `home-infra-debugging-playbook`.
 
 ---
@@ -329,7 +330,7 @@ summary. Never do these on impulse, even with NOPASSWD sudo at your fingertips:
 | Delete documents from the RAG Engine (`--cleanup` "y", `DELETE /documents/delete_document`) | Destructive to the index; the two-stage archive exists precisely to prevent hasty deletes (ADR 0003) |
 | Write into the live vault (beyond wiki-ingest's contract, section 5) | Syncthing replicates mistakes to every device |
 | Point anything at raw Ollama `:11434` | Non-negotiable invariant — broker only (`:11435`/`:11436`/`:11437`/`:11438`) |
-| "Fix" the wiki-ingest `--semantic-lint` bug or other repo code mid-operation | Code changes are change-control territory, not ops |
+| "Fix" repo code mid-operation (the old `wiki-ingest --semantic-lint` entry-point bug is one past example — now closed 2026-07-03) | Code changes are change-control territory, not ops |
 | Touch anything on NAS port `:9622` | `lightrag-trading` is undocumented live reality — confirm with Preston first |
 
 Read-only is always fine: `docker ps`, `docker logs`, `cat`, `ls`, `curl` GETs.

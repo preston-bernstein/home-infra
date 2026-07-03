@@ -127,13 +127,15 @@ bug; see `home-infra-failure-archaeology`).
 
 - Env vars, `LIGHTRAG_API_KEY`, and `X-API-Key` header confirmed identical by source
   inspection (`docs/specs/minirag-migration.md`, resolved checklist).
-- MiniRAG's internal port is **9721** (not 9621); compose maps `9622:9721`.
+- MiniRAG's internal port is **9721** (not 9621); compose maps `9623:9721` (moved off
+  `:9622` 2026-07-03 to avoid the `lightrag-trading` conflict below).
 - **`lightrag-mcp` against MiniRAG is UNVERIFIED** — spec Step 3 is explicitly TBD. If it
   fails, diff MiniRAG's `/openapi.json` against LightRAG's, looking at `/query` response
   and `/documents/track_status` field names.
-- Live-NAS conflict: a `lightrag-trading` container occupies `:9622` (undocumented — not
-  in any repo file). Confirm ownership with Preston before touching `:9622`; do not
-  resolve unilaterally. See `home-infra-architecture-contract` drift register.
+- Live-NAS mystery (unrelated to minirag's port now): a `lightrag-trading` container
+  occupies `:9622` (undocumented — not in any repo file). Confirm ownership with Preston
+  before touching `:9622`; do not resolve unilaterally. See `home-infra-architecture-contract`
+  drift register.
 
 ## 3. Embeddings as applied here
 

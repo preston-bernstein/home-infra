@@ -46,8 +46,9 @@ steady-state; the 2 FAILs were a real transient (see broker note).
 **Known-benign WARNs (do not chase):**
 - `registry` / `minirag` in repo compose but not running — expected until the MiniRAG
   migration executes (see `minirag-migration-campaign`).
-- `lightrag-trading` running on :9622 — undocumented in this repo; PORT CONFLICT with the
-  planned minirag mapping. Flag only; confirm ownership with Preston. Never touch it.
+- `lightrag-trading` running on :9622 — undocumented in this repo (minirag moved to
+  :9623 2026-07-03, so it no longer conflicts). Flag only; confirm ownership with
+  Preston. Never touch it.
 - `fashion-monitor-*` crash-looping — owned by the fashion-monitor repo, not home-infra.
 
 **FAIL meanings:**

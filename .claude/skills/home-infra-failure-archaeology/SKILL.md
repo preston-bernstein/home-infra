@@ -52,7 +52,7 @@ Chronological. "Settled" means: do not re-litigate without new evidence.
 | F8 | LightRAG SLM extraction fails ~35% at 8b → MiniRAG pivot; workarounds rejected | Open until migration completes |
 | F9 | mxbai-embed-large truncates past ~1k tokens, silently losing long-doc tails → bge-m3 | Resolved by migration in flight |
 | F10 | `wiki-ingest.py --semantic-lint` alone runs a full ingest (entry-point bug) | CLOSED — fixed 2026-07-03 |
-| F11 | `lightrag-trading` live on NAS :9622 — in no repo file; conflicts with planned minirag port | OPEN MYSTERY — flag, do not touch |
+| F11 | `lightrag-trading` live on NAS :9622 — in no repo file; port conflict with minirag resolved 2026-07-03 (minirag moved to :9623), identity still unknown | OPEN MYSTERY — flag, do not touch |
 | F12 | registry + minirag in repo compose but not running live — migration stalled | OPEN — the hardest live problem |
 | F13 | `docs/specs/ai-stack.md` rot — written as plan, never synced after execution | OPEN process failure |
 | F14 | Crontab 2am→4am; watchtower also at 4am | Commit drift CLOSED 2026-07-03; 4am overlap still open |
@@ -315,15 +315,15 @@ Chronological. "Settled" means: do not re-litigate without new evidence.
 - **Symptom:** Live container `lightrag-trading` observed on the NAS
   (`0.0.0.0:9622→9621`, Up 5h at observation time 2026-07-02) that **appears in no file in
   this repo** — not in compose, not in any spec or ADR.
-- **Conflict:** the (uncommitted) repo compose assigns **:9622 to minirag**
-  (`9622:9721`, `compose/nas/docker-compose.yml`). Deploying minirag as written will
-  collide with whatever lightrag-trading is.
-- **Status:** **OPEN MYSTERY — flag only.** Do NOT stop, restart, or reuse :9622.
+- **Former conflict (resolved 2026-07-03):** the repo compose used to also assign
+  **:9622 to minirag**, which would have collided with whatever lightrag-trading is.
+  Gate 0a resolved that by moving minirag to `9623:9721` (`compose/nas/docker-compose.yml`,
+  `8fcc49c`) — deploying minirag no longer touches :9622.
+- **Status:** **lightrag-trading's identity is still an OPEN MYSTERY — flag only** (the
+  port-conflict half is closed). Do NOT stop, restart, or reuse :9622.
   **Confirm ownership and purpose with Preston before touching anything on :9622.** It is
   plausibly owned by a different project entirely (name suggests trading; ASSUMPTION — no
-  repo evidence). Resolution options (pick a different minirag port vs. relocate
-  lightrag-trading) are a decision for Preston via `home-infra-change-control`, not for an
-  agent to make unilaterally.
+  repo evidence).
 - **Lesson:** The repo is intent; the machine is runtime truth (sync-contract assumption —
   see `home-infra-architecture-contract`). Always `docker ps` before assuming a port from
   compose is free.
@@ -331,7 +331,7 @@ Chronological. "Settled" means: do not re-litigate without new evidence.
 ## F12 — Migration stalled: registry + minirag in compose, neither running live
 
 - **Symptom:** `compose/nas/docker-compose.yml` declares `registry` (:5000) and `minirag`
-  (:9622); live NAS (`docker ps`, observed 2026-07-02) runs **neither**. LightRAG still
+  (:9623); live NAS (`docker ps`, observed 2026-07-02) runs **neither**. LightRAG still
   serves production on :9621.
 - **Root cause (state analysis, not a single bug):** the MiniRAG migration
   (`docs/specs/minirag-migration.md`, 5 steps + rollback) is stalled between Step 0 and
@@ -341,7 +341,8 @@ Chronological. "Settled" means: do not re-litigate without new evidence.
      `docker buildx build`).
   2. The NAS registry that the image push targets (`10.0.0.250:5000/minirag:latest`) is
      itself not running yet.
-  3. Planned port :9622 is occupied by lightrag-trading (F11).
+  3. ~~Planned port :9622 is occupied by lightrag-trading (F11).~~ RESOLVED 2026-07-03 —
+     minirag moved to :9623, no longer blocked by this.
   4. Step 3 is explicitly TBD in the spec: lightrag-mcp ↔ MiniRAG API compatibility
      unverified.
 - **Status:** **OPEN — the hardest live problem** (ASSUMPTION, 2026-07-02 authoring pass;
@@ -441,12 +442,16 @@ batch-insert/track_status, 0003 two-stage archive→delete, 0005 LibreChat on de
 
 ## Open items at a glance (as of 2026-07-02)
 
-- F5 — `654891a` fail-hard fix absent from local `main` (present on `add-embed-stack` and `origin/main`; local `main` is a divergent rewrite).
-- F8/F12 — MiniRAG migration stalled pre-Step-1; everything about it uncommitted. Phase 0
+- F5 — **CLOSED 2026-07-03.** `654891a` fail-hard fix reached local `main` when the
+  local/origin git divergence was reconciled.
+- F8/F12 — MiniRAG migration stalled pre-Step-1; ADRs/spec/compose all committed now
+  (`ebc8e9e`, `521df55`, `8fcc49c`) — nothing about it uncommitted anymore. Phase 0
   gates resolved 2026-07-03 (minirag → :9623, Route B shipping, NAS memory: free first);
-  campaign now proceeding — see `minirag-migration-campaign`.
+  campaign now proceeding — see `minirag-migration-campaign`. Still stalled on the actual
+  live deploy (image build, registry, etc.).
 - F10 — `wiki-ingest.py --semantic-lint` entry-point bug. **CLOSED 2026-07-03.**
-- F11 — `lightrag-trading` on :9622 — undocumented; ask Preston.
+- F11 — `lightrag-trading` on :9622 — undocumented; ask Preston. (Port conflict with
+  minirag resolved 2026-07-03; the container's identity is still unknown.)
 - F13 — `ai-stack.md` rot.
 - F14 — 4am watchtower/indexer overlap still unexamined (commit drift closed 2026-07-03).
 - F15 — `indexer.py --cleanup` failed-doc census silently errors (uppercase `status_filter`). **CLOSED 2026-07-03.**
@@ -478,10 +483,10 @@ batch-insert/track_status, 0003 two-stage archive→delete, 0005 LibreChat on de
   noted):
   - Live NAS containers/ports (F11, F12, F14):
     `ssh -i ~/.ssh/agent_ed25519 agent@10.0.0.250 'sudo /usr/local/bin/docker ps --format "{{.Names}}\t{{.Ports}}\t{{.Status}}"'`
-  - Uncommitted migration state still uncommitted (F12): `git status --short && git log --oneline -1`
-  - Fail-hard fix still absent from local main (F5): `git branch -a --contains 654891a`
-    (expect `add-embed-stack` and `remotes/origin/main`, NOT local `main`) and
-    `git show main:vault-indexer/indexer.py | sed -n '25p'`
+  - Migration state committed, live deploy still pending (F12): `git status --short && git log --oneline -1`
+  - Fail-hard fix present on local main (F5 closed 2026-07-03): `git branch -a --contains 654891a`
+    (expect local `main` included now, alongside `add-embed-stack` and `remotes/origin/main`) and
+    `git show main:vault-indexer/indexer.py | sed -n '25p'` (expect `sys.exit`, no `"changeme"`)
   - wiki-ingest bug fix still in place (F10): `sed -n '389,398p' wiki-ingest.py` (expect
     no `elif semantic and not lint_only` branch)
   - Production LLM/embedding models (F8, F9): `grep -n 'LLM_MODEL\|EMBEDDING_MODEL' compose/nas/docker-compose.yml`

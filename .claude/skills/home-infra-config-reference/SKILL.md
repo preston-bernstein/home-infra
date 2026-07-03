@@ -40,9 +40,9 @@ Status legend:
 | Port | Service | Status | Notes |
 |---|---|---|---|
 | 9621 | lightrag (RAG Engine) | [repo+live] | `ghcr.io/hkuds/lightrag:latest`, maps 9621→9621 |
-| 9622 | minirag | [repo-only, uncommitted] | Worktree compose maps `9622:9721` (MiniRAG internal port is **9721**). NOT running live. **CONFLICT — see next row.** |
-| 9622 | lightrag-trading | [live-only] | **UNDOCUMENTED live reality**: maps 9622→9621, up on the NAS, appears in NO repo file. Repo assigns :9622 to minirag. Do NOT touch :9622 or resolve the conflict — confirm ownership with Preston first. Flagged in the drift register (`home-infra-architecture-contract`). |
-| 5000 | registry (Docker registry:2) | [repo-only, uncommitted] | In the UNCOMMITTED migration worktree compose (not in any commit); NOT running live 2026-07-02. Prerequisite for the MiniRAG migration (`minirag-migration-campaign`). |
+| 9623 | minirag | [repo-only, committed] | Compose maps `9623:9721` (MiniRAG internal port is **9721**). Moved off `:9622` 2026-07-03 (Gate 0a) to avoid the `lightrag-trading` conflict below. NOT running live yet. |
+| 9622 | lightrag-trading | [live-only] | **UNDOCUMENTED live reality**: maps 9622→9621, up on the NAS, appears in NO repo file. No longer contested by minirag (moved to :9623), but ownership is still an open mystery — do NOT touch :9622, confirm ownership with Preston first. Flagged in the drift register (`home-infra-architecture-contract`). |
+| 5000 | registry (Docker registry:2) | [repo-only, committed] | In `compose/nas/docker-compose.yml` since `ebc8e9e`; NOT running live yet. Prerequisite for the MiniRAG migration (`minirag-migration-campaign`). |
 | 3002 | lightrag-mcp | [repo+live] | MCP endpoint path `/mcp`, streamable-http, stateless. Image also `EXPOSE 3001` (stale Dockerfile default — unused; compose flags win). |
 | — | vault-indexer | [repo+live] | No published port; cron container, talks to lightrag over `ai-net` docker network (`ai_ai-net`). |
 | — | tailscale-nas | [repo+live] | `network_mode: host`, hostname `house-of-light` |
@@ -147,12 +147,12 @@ Set in `compose/nas/docker-compose.yml`; secret interpolated from `/volume1/dock
 
 Volumes: `/volume1/docker/ai/lightrag:/app/data`, `/volume1/obsidian-vault:/vault:ro`.
 
-### 4.2 minirag (NAS :9622) — experimental (uncommitted, not running)
+### 4.2 minirag (NAS :9623) — experimental (committed, not running live)
 
-Set in the uncommitted worktree `compose/nas/docker-compose.yml`. Image
-`10.0.0.250:5000/minirag:latest` — must be built from source (no GHCR image; Dockerfile
-needs a dummy `touch .env`) and pushed to the NAS registry, which is also not running
-yet. Same env var names as lightrag (verified against MiniRAG source per
+Set in `compose/nas/docker-compose.yml` (committed `ebc8e9e`, port corrected `8fcc49c`).
+Image `10.0.0.250:5000/minirag:latest` — must be built from source (no GHCR image;
+Dockerfile needs a dummy `touch .env`) and pushed to the NAS registry, which is also not
+running yet. Same env var names as lightrag (verified against MiniRAG source per
 `docs/specs/minirag-migration.md`), differing values:
 
 | Env var | Value |
@@ -161,9 +161,9 @@ yet. Same env var names as lightrag (verified against MiniRAG source per
 | `EMBEDDING_MODEL` | `bge-m3` |
 | everything else | identical to lightrag (both lanes, `WORKING_DIR`, `LIGHTRAG_API_KEY`) |
 
-Port mapping `9622:9721` (internal port 9721, not 9621). Volume
-`/volume1/docker/ai/minirag:/app/data`. Deployment is gated by the :9622 conflict —
-see `minirag-migration-campaign`.
+Port mapping `9623:9721` (internal port 9721, not 9621) — moved off `:9622` 2026-07-03 to
+avoid the `lightrag-trading` conflict. Volume `/volume1/docker/ai/minirag:/app/data`.
+Deployment still needs the registry/image-build steps — see `minirag-migration-campaign`.
 
 ### 4.3 vault-indexer (NAS, no port) — production
 

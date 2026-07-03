@@ -16,7 +16,7 @@ Jargon used below (full vocabulary in `CONTEXT.md`, house rules in `home-infra-d
 | Term | Meaning here |
 |---|---|
 | SLM | Small language model that fits 16GB VRAM at Q4 (3b–14b class). 32b+ does not fit (ADR 0010). |
-| RAG Engine | The graph-RAG server on the NAS — LightRAG today (:9621), MiniRAG in-flight (:9622 per repo compose). |
+| RAG Engine | The graph-RAG server on the NAS — LightRAG today (:9621), MiniRAG in-flight (:9623 per repo compose). |
 | Wiki | The compiled `wiki/` layer of the Obsidian vault, maintained by `wiki-ingest.py` (ADR 0012). |
 | Broker | `ollama-resource-broker` on the desktop — all Ollama inference goes through lanes :11435/:11436/:11437/:11438, never raw :11434. Authoritative table in `home-infra-config-reference`. |
 | Gold set | Hand-labeled query/answer evaluation set. Definition and construction recipe live in `rag-evaluation-methodology`. |
@@ -131,9 +131,9 @@ If any part of this project is ever published, open-sourced, or even described i
   - 35% baseline + SLM rationale: `cat /Users/prestonbernstein/dev/home-infra/docs/adr/0010-minirag-over-lightrag.md`
   - Wiki pattern rationale: `cat /Users/prestonbernstein/dev/home-infra/docs/adr/0012-llm-wiki-compiled-layer.md`
   - Corpus indexed count: `grep -n "files indexed" /Users/prestonbernstein/dev/home-infra/docs/specs/lightrag-vault-indexer.md`
-  - Semantic-lint bug still present: `sed -n '389,403p' /Users/prestonbernstein/dev/home-infra/wiki-ingest.py` (bug = `elif semantic and not lint_only: run_ingest()`)
+  - Semantic-lint entry-point fix still in place: `sed -n '389,398p' /Users/prestonbernstein/dev/home-infra/wiki-ingest.py` (expect no `elif semantic and not lint_only` branch — closed 2026-07-03)
   - Lint taxonomy + batching: `grep -n "CONTRADICTION\|STALE\|MISSING-LINK\|SEMANTIC_LINT_PAGE_BATCH" /Users/prestonbernstein/dev/home-infra/wiki-ingest.py`
-  - MiniRAG compose entry (models, :9622→9721): `grep -n -A12 "minirag:" /Users/prestonbernstein/dev/home-infra/compose/nas/docker-compose.yml`
+  - MiniRAG compose entry (models, :9623→9721): `grep -n -A12 "minirag:" /Users/prestonbernstein/dev/home-infra/compose/nas/docker-compose.yml`
   - nginx `/mcp/*` still commented out: `grep -n "mcp" /Users/prestonbernstein/dev/home-infra/compose/nas/nginx.conf`
   - MCP servers wired into LibreChat: `grep -n -A3 "mcpServers" /Users/prestonbernstein/dev/home-infra/compose/desktop/librechat.yaml`
-  - :9622 occupancy on live NAS (lightrag-trading conflict): `ssh -i ~/.ssh/agent_ed25519 agent@10.0.0.250 'sudo /usr/local/bin/docker ps --format "{{.Names}} {{.Ports}}" | grep 9622'`
+  - :9622 occupancy on live NAS (lightrag-trading mystery, unrelated to minirag's port now): `ssh -i ~/.ssh/agent_ed25519 agent@10.0.0.250 'sudo /usr/local/bin/docker ps --format "{{.Names}} {{.Ports}}" | grep 9622'`

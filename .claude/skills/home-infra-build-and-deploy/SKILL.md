@@ -154,7 +154,7 @@ Order matters. Everything below is derived from repo files; live-machine specifi
 | `mcp/lightrag/README.md` says `daniel-lightrag-mcp` / :3001 | wrong package installed, wrong port probed | Dockerfile installs `lightrag-mcp`; compose runs it on :3002 |
 | rsync to Synology | rsync-over-ssh blocked | `docker save \| ssh ... docker load`; plain scp needs `-O` |
 | New desktop service run as `preston` | violates standing instruction | dedicated nologin service user per service |
-| NAS `:9622` looks free in repo compose (assigned to minirag) | live NAS already runs undocumented `lightrag-trading` on :9622 (as of 2026-07-02) | FLAG — confirm ownership with Preston before touching :9622; do not resolve unilaterally |
+| NAS `:9622` | live NAS runs undocumented `lightrag-trading` on :9622 (as of 2026-07-02); repo minirag moved to `:9623` 2026-07-03, no longer contests it | FLAG — confirm ownership with Preston before touching :9622; do not resolve unilaterally |
 
 ## When NOT to use this skill
 

@@ -29,7 +29,7 @@ Classify EVERY change before acting. When a change spans classes, the strictest 
 | **D — Index-destructive operations** | Full re-index; embedding/LLM model swap; `delete_document`; `--cleanup`; wiping RAG storage dirs. | **Human approval ALWAYS**, plus a pre-run recorded decision (an ADR if it is a decision of record — see non-negotiables 6 and 8). | `pipeline_status` idle; state file (`hashes.json`) backed up; indexed-doc count captured; rollback path identified (e.g. migration keeps LightRAG storage untouched — see `docs/specs/minirag-migration.md` Rollback). | Doc counts match expectation; representative queries pass per `home-infra-validation-and-qa`. | `minirag-migration-campaign` (the migration), `home-infra-run-and-operate` (manual indexer runs) |
 | **E — New service / new port** | New compose service, new host-port binding, new MCP server on either machine. | Human approval; port claim checked against **live `docker ps` on both machines AND the drift register** — repo compose alone is not enough (see :9622 warning below). | Port-collision check; desktop services get a dedicated nologin service user (non-negotiable 4); `.env.example` entry for any new secret. | Container up and healthy; new port/var recorded in `home-infra-config-reference`; drift register updated. | `home-infra-build-and-deploy` |
 
-**:9622 warning (as of 2026-07-02):** live NAS runs `lightrag-trading` on :9622 — a container that appears in NO repo file — while the repo's uncommitted compose assigns :9622 to `minirag`. This is an unresolved conflict. Confirm ownership of :9622 with Preston before touching it; do NOT resolve it yourself. Details in the drift register (`home-infra-architecture-contract`).
+**:9622 warning:** live NAS runs `lightrag-trading` on :9622 — a container that appears in NO repo file. The repo compose used to also assign :9622 to `minirag` (a real conflict); that was resolved 2026-07-03 by moving minirag to `:9623`. `lightrag-trading`'s ownership is still unconfirmed — confirm with Preston before touching :9622; do NOT resolve it yourself. Details in the drift register (`home-infra-architecture-contract`).
 
 ## Non-negotiables
 
@@ -45,7 +45,7 @@ Each rule below has a rationale and the historical incident (or standing instruc
 
 **Rule:** real credentials live only in `.env` files on the machines (e.g. `LIGHTRAG_API_KEY` in the `.env` next to `/volume1/docker/ai/docker-compose.yml` on the NAS). The repo carries `${VAR}` references plus committed `.env.example` templates. Never commit a secret, never write one into a skill or doc, and never give code a working default value for a secret.
 **Rationale:** git history is permanent — a committed key is compromised even after a follow-up commit removes it. Placeholder defaults like `changeme` are worse than crashes: the service starts and runs insecurely in silence.
-**Incident:** `LIGHTRAG_API_KEY=changeme` WAS committed in the NAS compose (fixed in `3ec836f`); the hardcoded `OVERSEERR_KEY` lived only in the working tree and was sanitized before it ever entered git history. The fail-hard follow-up (`654891a`) exists on the `add-embed-stack` branch AND `origin/main` — but the local `main` worktree still has the soft default `os.environ.get("LIGHTRAG_API_KEY", "changeme")` at `vault-indexer/indexer.py:25`. New code handling secrets must follow the fail-hard pattern. Full story: `home-infra-failure-archaeology` F5.
+**Incident:** `LIGHTRAG_API_KEY=changeme` WAS committed in the NAS compose (fixed in `3ec836f`); the hardcoded `OVERSEERR_KEY` lived only in the working tree and was sanitized before it ever entered git history. The fail-hard follow-up (`654891a`) reached local `main` 2026-07-03 when a git-history divergence between local and `origin/main` was reconciled — `vault-indexer/indexer.py:25` now `sys.exit`s on a missing key, no soft default. New code handling secrets must follow the fail-hard pattern. Full story: `home-infra-failure-archaeology` F5.
 
 ### 3. Never attribute commits or PRs to Claude
 
@@ -131,7 +131,7 @@ ls compose/nas/.env.example compose/desktop/.env.example .env.example
 #    NAS:     /volume1/docker/ai/docker-compose.yml
 #    Desktop: /opt/docker/librechat-stack/
 
-# 6. Port-collision check on the TARGET machine (Class E especially; :9622 is contested — see warning above)
+# 6. Port-collision check on the TARGET machine (Class E especially; :9622 is occupied by unexplained lightrag-trading — see warning above)
 ssh -i ~/.ssh/agent_ed25519 agent@10.0.0.250 'sudo /usr/local/bin/docker ps --format "{{.Names}}\t{{.Ports}}"'
 ssh -i ~/.ssh/agent_ed25519 agent@10.0.0.243 'sudo docker ps --format "{{.Names}}\t{{.Ports}}"'
 
@@ -172,9 +172,9 @@ Do not declare a Class C/D/E change done on "the container started." Run the smo
 - Re-verification one-liners (run from repo root):
   - Broker rule / :11434 sweep: `grep -rn '11434' compose/ mcp/ vault-indexer/ wiki-ingest.py`
   - Secrets history: `git show 3ec836f --stat && git show 654891a`
-  - Soft `changeme` default still on local main (F5 open): `grep -n 'LIGHTRAG_API_KEY' vault-indexer/indexer.py` (expect the `"changeme"` fallback until 654891a is reconciled) and `git branch -a --contains 654891a`
+  - Fail-hard LIGHTRAG_API_KEY (F5 closed 2026-07-03): `grep -n 'LIGHTRAG_API_KEY' vault-indexer/indexer.py` (expect `sys.exit(...)`, no `"changeme"` fallback)
   - Delete endpoint + archive policy: `grep -n 'delete_document\|ARCHIVE_DAYS' vault-indexer/indexer.py`
   - ADR inventory/style: `ls docs/adr/`
   - Live ports both machines: the two `docker ps` commands in the pre-deploy checklist, step 6
-  - :9622 conflict still open: `ssh -i ~/.ssh/agent_ed25519 agent@10.0.0.250 'sudo /usr/local/bin/docker ps' | grep 9622` vs `grep -n 9622 compose/nas/docker-compose.yml`
+  - minirag port + lightrag-trading mystery: `grep -n 9623 compose/nas/docker-compose.yml` (expect minirag) vs `ssh -i ~/.ssh/agent_ed25519 agent@10.0.0.250 'sudo /usr/local/bin/docker ps' | grep 9622` (expect lightrag-trading, still unexplained)
   - Deploy paths: `head -3 compose/nas/docker-compose.yml compose/desktop/docker-compose.yml` (desktop header is stale — trust `/opt/docker/librechat-stack/` per drift register)

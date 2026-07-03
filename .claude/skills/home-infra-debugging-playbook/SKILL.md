@@ -356,19 +356,21 @@ Each row below: **Cause → Experiment → Fix pointer → Story**.
 
 - **Most likely cause:** live-vs-repo port drift. Headline case (as of
   2026-07-02): **NAS `:9622` is occupied by a live container `lightrag-trading`
-  that appears in NO repo file**, while the repo compose assigns `9622:9721` to
-  the (not-yet-running) `minirag` service. Deploying minirag as-written would
-  collide.
+  that appears in NO repo file.** The repo compose used to also assign minirag
+  to `:9622` (a real collision); that was resolved 2026-07-03 by moving minirag
+  to `9623:9721` (Gate 0a in `minirag-migration-campaign`), so deploying minirag
+  as-written no longer collides with `lightrag-trading` — but `lightrag-trading`
+  itself is still undocumented live reality worth checking for on any port-bind
+  failure.
 - **Discriminating experiment:**
   ```bash
-  sudo /usr/local/bin/docker ps --format '{{.Names}}\t{{.Ports}}' | grep -E '9621|9622|3002|5000'
+  sudo /usr/local/bin/docker ps --format '{{.Names}}\t{{.Ports}}' | grep -E '9621|9622|9623|3002|5000'
   ```
   Compare against `compose/nas/docker-compose.yml`. Mismatch → drift; record it,
   don't resolve it unilaterally.
 - **Fix pointer:** **FLAG — confirm ownership of `:9622`/`lightrag-trading` with
   Preston before touching that port. Do not stop, rebind, or redeploy over it.**
-  Drift register (authoritative copy) → `home-infra-architecture-contract`; the
-  minirag port decision is a gate inside `minirag-migration-campaign`. Also
+  Drift register (authoritative copy) → `home-infra-architecture-contract`. Also
   stale-port traps: `mcp/lightrag/README.md` says :3001 but compose runs
   lightrag-mcp on :3002 — compose wins.
 - **Story:** `lightrag-trading` (0.0.0.0:9622→9621) showed up in live `docker ps`
@@ -435,7 +437,8 @@ Each row below: **Cause → Experiment → Fix pointer → Story**.
   in on-machine `.env`; `.env.example` is committed. Never copy key values into
   files or chat.
 - **`:9622` is NOT minirag** on the live NAS — it is `lightrag-trading`,
-  undocumented. FLAG and confirm with Preston; do not touch (Row 12).
+  undocumented. FLAG and confirm with Preston; do not touch (Row 12). Repo minirag
+  is `:9623` as of 2026-07-03.
 - **Repo compose ≠ live compose.** Diff before reasoning from the repo; drift
   register in `home-infra-architecture-contract`.
 - **04:00 is a double-load window**: vault-indexer cron AND watchtower both fire at

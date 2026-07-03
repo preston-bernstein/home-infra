@@ -27,8 +27,8 @@ Auth for every RAG Engine call: `X-API-Key` header; the key is `LIGHTRAG_API_KEY
 
 ```bash
 export LIGHTRAG_API_KEY=...        # value from /volume1/docker/ai/.env on the NAS
-BASE=http://10.0.0.250:9621        # LightRAG. :9622 currently answers as lightrag-trading
-                                   # (undocumented, do not touch); MiniRAG not deployed as of 2026-07-02
+BASE=http://10.0.0.250:9621        # LightRAG. :9622 answers as lightrag-trading
+                                   # (undocumented, do not touch); MiniRAG is :9623, not deployed as of 2026-07-03
 ```
 
 ---
@@ -101,9 +101,10 @@ before you lean on that number:
 with a separate state file (the parallel-experiment pattern — see Methodology below and
 Step 2 of `docs/specs/minirag-migration.md`).
 
-**PRECONDITIONS (hard):** MiniRAG deployed per `minirag-migration-campaign` Phase 3 with
-Gate 0a (the `:9622` conflict) resolved by Preston; never run this against `:9622` as-is
-today. **Image gate:** the deployed vault-indexer image may predate `STATE_FILE` support —
+**PRECONDITIONS (hard):** MiniRAG deployed per `minirag-migration-campaign` Phase 3.
+Gate 0a resolved 2026-07-03 — MiniRAG's port is `:9623`, not `:9622` (`:9622` is the
+still-unexplained `lightrag-trading` container; never run against it). **Image gate:**
+the deployed vault-indexer image may predate `STATE_FILE` support —
 if so the env var is silently ignored and the run WRITES PRODUCTION `hashes.json`. Verify
 first: `ssh -i ~/.ssh/agent_ed25519 agent@10.0.0.250 'sudo /usr/local/bin/docker exec
 vault-indexer grep -c STATE_FILE /app/indexer.py'` (`0` = rebuild the image first; see
@@ -354,7 +355,7 @@ implementation of the pattern):
 1. **Idea** — captured in a spec or ADR draft, never applied directly to the live stack.
 2. **Parallel experiment** — run the candidate NEXT TO production, never in place of it:
    separate `STATE_FILE` (`hashes-minirag.json` vs `hashes.json`), parallel port
-   (`:9622` vs `:9621`), separate storage dir (`/volume1/docker/ai/minirag/` vs
+   (`:9623` vs `:9621`), separate storage dir (`/volume1/docker/ai/minirag/` vs
    `.../lightrag/`). Production stays untouched; rollback = stop the parallel container
    (see `docs/specs/minirag-migration.md` Rollback section). Any experiment you design
    must have this shape before it touches a machine — behavior-changing actions route
@@ -402,20 +403,21 @@ historically productive places to look. Open problems live in `home-infra-resear
 
 ## Provenance and maintenance
 
-- Facts verified 2026-07-02 against repo state (commit 6cbd3a1 + uncommitted
-  MiniRAG-migration worktree changes: ADRs 0010/0011/0012, `docs/specs/minirag-migration.md`,
-  `wiki-ingest.py`, minirag service in `compose/nas/docker-compose.yml`). No live-machine
-  claims are made here beyond what those files state; container status as of 2026-07-02:
-  MiniRAG not yet running, `:9622` occupied by an undocumented `lightrag-trading` container
-  — confirm ownership with Preston before using `:9622` (see `home-infra-architecture-contract`).
+- Facts re-verified 2026-07-03 against committed repo state (ADRs 0010/0011/0012,
+  `docs/specs/minirag-migration.md`, `wiki-ingest.py`, minirag service in
+  `compose/nas/docker-compose.yml`, all committed by `ebc8e9e`/`521df55`/`8fcc49c`).
+  No live-machine claims are made here beyond what those files state; container status
+  as of 2026-07-02: MiniRAG not yet running, `:9622` occupied by an undocumented
+  `lightrag-trading` container — confirm ownership with Preston before using `:9622`
+  (see `home-infra-architecture-contract`). MiniRAG itself is `:9623` as of 2026-07-03.
 - The ~35% (ADR 0010) and ~1k-token (ADR 0011) figures are quoted from the ADRs; their
   original measurement procedures are not recorded anywhere in the repo — treat Recipes 1
   and 2 as the reproduction protocol, not as confirmation the numbers are current.
 - Re-verification one-liners:
   - Pagination pattern: `grep -n 'documents/paginated' /Users/prestonbernstein/dev/home-infra/vault-indexer/indexer.py`
   - Indexer log line semantics: `grep -n 'succeeded' /Users/prestonbernstein/dev/home-infra/vault-indexer/indexer.py`
-  - Lint functions + semantic-lint bug: `grep -n 'run_structural_lint\|run_semantic_lint\|elif semantic' /Users/prestonbernstein/dev/home-infra/wiki-ingest.py`
+  - Lint functions + semantic-lint entry-point fix: `grep -n 'run_structural_lint\|run_semantic_lint\|elif semantic' /Users/prestonbernstein/dev/home-infra/wiki-ingest.py` (expect no `elif semantic` match — closed 2026-07-03)
   - Representative queries: `grep -n 'Corolla\|topology' /Users/prestonbernstein/dev/home-infra/docs/specs/minirag-migration.md`
   - Crontab hour: `cat /Users/prestonbernstein/dev/home-infra/vault-indexer/crontab`
-  - Compose models/ports: `grep -n 'LLM_MODEL\|EMBEDDING_MODEL\|9621\|9622' /Users/prestonbernstein/dev/home-infra/compose/nas/docker-compose.yml`
+  - Compose models/ports: `grep -n 'LLM_MODEL\|EMBEDDING_MODEL\|9621\|9623' /Users/prestonbernstein/dev/home-infra/compose/nas/docker-compose.yml`
   - ADR claims: `cat /Users/prestonbernstein/dev/home-infra/docs/adr/0010-minirag-over-lightrag.md /Users/prestonbernstein/dev/home-infra/docs/adr/0011-bge-m3-over-mxbai.md`
