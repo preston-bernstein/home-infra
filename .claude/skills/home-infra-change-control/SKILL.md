@@ -76,7 +76,7 @@ Each rule below has a rationale and the historical incident (or standing instruc
 ### 8. Decisions of record require an ADR in the house style
 
 **Rule:** any load-bearing decision — model choice, service replacement, port scheme, transport, deletion policy — gets an ADR at `docs/adr/NNNN-slug.md` in the house style (a title line plus one dense paragraph covering context, decision, alternatives rejected, and tradeoffs; "Supersedes ADR NNNN" when applicable). Class D pre-run decisions that set precedent belong here. Style guide: `home-infra-docs-and-writing`.
-**Rationale:** the repo's twelve ADRs (0001–0012) are the project's institutional memory — e.g. ADR 0002 documents that LightRAG's `POST /documents/texts` returns only a `track_id` and `doc_id`s require polling `track_status`, a non-obvious fact that would otherwise be re-discovered painfully. Undocumented decisions become drift (see the drift register for what happens without this discipline).
+**Rationale:** the repo's thirteen ADRs (0001–0013) are the project's institutional memory — e.g. ADR 0002 documents that LightRAG's `POST /documents/texts` returns only a `track_id` and `doc_id`s require polling `track_status`, a non-obvious fact that would otherwise be re-discovered painfully. Undocumented decisions become drift (see the drift register for what happens without this discipline).
 
 ## Repo↔live sync contract — ASSUMPTION
 

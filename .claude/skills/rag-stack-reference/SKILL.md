@@ -179,16 +179,16 @@ Vocabulary (`CONTEXT.md`): a **Home MCP** is an MCP server hosted on home infras
 | Transport | What it is | Used here for |
 |---|---|---|
 | stdio | Client spawns the server as a child process; per-machine install | External MCPs only |
-| SSE | HTTP server, Server-Sent Events stream | ADR 0006's original decision; superseded in practice |
-| streamable-http | HTTP server, current MCP spec transport | **What everything actually runs** (as of 2026-07-02) |
+| SSE | HTTP server, Server-Sent Events stream | ADR 0006's original decision; superseded by ADR 0013 |
+| streamable-http | HTTP server, current MCP spec transport | **What everything actually runs**, per ADR 0013 (2026-07-03) |
 
 - **Why network transport at all (ADR 0006):** Home MCPs serve multiple clients —
   LibreChat on the desktop, Claude Code and other tools on the MacBook. stdio would mean
   installing and version-syncing every MCP on every client. A network transport runs the
-  server once (e.g. on the NAS) and every client connects. ADR 0006 says "SSE"; the MCP
-  spec evolved and the live deployments use `streamable-http` — a known documented drift
-  (register in `home-infra-architecture-contract`), not a contradiction of the decision's
-  substance (network > stdio for multi-client).
+  server once (e.g. on the NAS) and every client connects. ADR 0006 said "SSE"; the MCP
+  spec evolved and ADR 0013 documents the rename to `streamable-http` — not a
+  contradiction of the decision's substance (network > stdio for multi-client), which
+  ADR 0013 explicitly reaffirms.
 - **What actually runs:** `lightrag-mcp` on NAS `:3002` with
   `--mcp-transport streamable-http --mcp-streamable-http-path /mcp --mcp-stateless-http`
   (`compose/nas/docker-compose.yml`); vision-mcp `:3003` and proton-email-mcp `:3004` on

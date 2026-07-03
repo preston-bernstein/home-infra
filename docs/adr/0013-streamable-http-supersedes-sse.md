@@ -1,0 +1,5 @@
+# Use streamable-http instead of SSE transport for Home MCPs
+
+Supersedes ADR 0006.
+
+ADR 0006's real decision — host each Home MCP once on the NAS or desktop and reach it over HTTP from every client (LibreChat, aichat, Claude Code) instead of installing stdio servers per machine — still holds; only the wire transport it named has changed. The MCP spec's remote-transport recommendation moved from SSE to Streamable HTTP after ADR 0006 was written, and every Home MCP in this repo has run streamable-http since: the lightrag-mcp compose command has passed `--mcp-transport streamable-http` since commit `f2565b4` (2026-06-21), `compose/desktop/librechat.yaml` declares all three MCP servers (lightrag `http://10.0.0.250:3002/mcp`, vision `:3003`, proton-email `:3004`) as `type: "streamable-http"`, and `mcp/lightrag/Dockerfile`'s CMD uses streamable-http. This ADR documents the spec-driven transport rename; it is not a re-litigation of the network-hosted-over-stdio decision, which remains correct for a multi-client home network.

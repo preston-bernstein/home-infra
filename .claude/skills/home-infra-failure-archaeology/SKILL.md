@@ -21,7 +21,7 @@ Jargon used throughout (full vocabulary in `CONTEXT.md` at repo root):
 - **Vault** — the Obsidian vault at `/volume1/obsidian-vault` on the NAS; source of truth.
 - **Broker** — `ollama-resource-broker` on the desktop; arbitrates all Ollama/GPU access
   (lanes :11435 interactive, :11436 batch, :11437 jobs, :11438 embed). Never use raw `:11434`.
-- **ADR** — one-dense-paragraph architecture decision records in `docs/adr/0001`–`0012`.
+- **ADR** — one-dense-paragraph architecture decision records in `docs/adr/0001`–`0013`.
 
 Repo history is short and fully known — full `main` history as of 2026-07-03 (chronological):
 

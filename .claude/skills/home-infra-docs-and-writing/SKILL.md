@@ -23,7 +23,7 @@ This repo (`/Users/prestonbernstein/dev/home-infra`) treats documentation as loa
 **Conflict examples you will actually hit (as of 2026-07-02):**
 
 - `docs/specs/ai-stack.md` says Ollama `:11434`, `mxbai-embed-large`, MCP `:3001`, SSE. All stale. CONTEXT.md + ADRs 0010/0011 + compose files win. Treat ai-stack.md as historical intent (see §4).
-- ADR 0006 says "SSE transport"; live Home MCPs use `streamable-http` (MCP spec evolved). The compose/librechat.yaml values are runtime truth; this is logged drift, not license to rewrite ADR 0006.
+- ADR 0006 said "SSE transport"; live Home MCPs use `streamable-http` (MCP spec evolved). This was exactly the case for a superseding ADR, not a rewrite of 0006 — see ADR 0013 (2026-07-03), the pattern to follow next time this happens.
 - CONTEXT.md says Lint uses broker `:11436`; `wiki-ingest.py` uses `:11435` for everything. Flagged drift — do not silently "fix" either side; record it (see §5).
 
 The authoritative drift register lives in `home-infra-architecture-contract` — this skill only tells you where to write things down.
@@ -68,9 +68,9 @@ Adding a CONTEXT.md entry is a docs-only change but still goes through normal ch
 
 ## 3. ADR house style
 
-Derived from the 12 real ADRs in `docs/adr/` (0001–0012). Match it exactly — a new ADR that looks different from the existing twelve is wrong.
+Derived from the 13 real ADRs in `docs/adr/` (0001–0013). Match it exactly — a new ADR that looks different from the existing thirteen is wrong.
 
-**Filename:** `NNNN-kebab-title.md`, zero-padded 4-digit number, next free number (0013 is next as of 2026-07-02). The kebab title is a compressed form of the decision, e.g. `0011-bge-m3-over-mxbai.md`, `0004-librechat-over-open-webui.md`.
+**Filename:** `NNNN-kebab-title.md`, zero-padded 4-digit number, next free number (0014 is next as of 2026-07-03). The kebab title is a compressed form of the decision, e.g. `0011-bge-m3-over-mxbai.md`, `0004-librechat-over-open-webui.md`.
 
 **Title (`#` line) IS the decision**, phrased as an imperative or assertion — never a topic label:
 
