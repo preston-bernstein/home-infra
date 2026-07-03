@@ -88,7 +88,7 @@ curl -s -o /dev/null -w '%{http_code}\n' http://10.0.0.243:11435/
 | 7 | Vault file vanished from the index |
 | 8 | `sudo docker` on the NAS → command not found |
 | 9 | wiki-ingest prints "no pages parsed" |
-| 10 | `--semantic-lint` unexpectedly ingested captures |
+| 10 | `--semantic-lint` unexpectedly ingested captures (CLOSED 2026-07-03) |
 | 11 | Container crash-looping on the NAS |
 | 12 | Port bind failure / service unreachable on its expected port |
 | 13 | Poor or garbled entity extraction in RAG answers |
@@ -311,31 +311,22 @@ Each row below: **Cause → Experiment → Fix pointer → Story**.
   start of the LLM Wiki layer (ADR 0012) because SLM format compliance is flaky.
   See `home-infra-failure-archaeology`.
 
-### Row 10 — Ran `--semantic-lint` and it ingested captures unexpectedly
+### Row 10 — Ran `--semantic-lint` and it ingested captures unexpectedly (CLOSED 2026-07-03)
 
-- **Most likely cause:** known entry-point bug in `wiki-ingest.py` (as of
-  2026-07-02, untracked file at repo root). The dispatch is:
+- **Historical cause:** entry-point bug in `wiki-ingest.py`. The dispatch had:
   ```python
   elif semantic and not lint_only:
       run_ingest()
   ```
-  so `--semantic-lint` **alone** ALSO runs a full ingest of `_raw/`, contradicting
+  so `--semantic-lint` **alone** ALSO ran a full ingest of `_raw/`, contradicting
   the docstring ("structural + semantic (LLM) lint").
-- **Discriminating experiment:** none needed — read the entry point
-  (`wiki-ingest.py`, bottom of file). To confirm what just happened: captures gone
-  from `_raw/` + new/updated pages in `wiki/` → the ingest ran.
-- **Safe invocation (lint only, no ingest):**
-  ```bash
-  python3 wiki-ingest.py --lint --semantic-lint
-  ```
-  Both flags together take the lint-only path.
-- **Fix pointer:** fixing the entry point is a code change →
-  `home-infra-change-control`; the bug is on the drift register →
-  `home-infra-architecture-contract`. An accidental ingest is destructive-ish:
-  captures are deleted after ingest, and the original capture text is unrecoverable —
-  only the LLM-merged wiki content survives. Review the produced pages with `--lint`.
-- **Story:** documented as drift item; the docstring promises lint-only,
-  the code disagrees. See `home-infra-failure-archaeology`.
+- **Fix (2026-07-03):** the erroneous `elif` branch was removed; `--semantic-lint`
+  alone now only lints, matching the docstring. All 4 flag combinations verified
+  against expected behavior. If you still see this symptom, `wiki-ingest.py` may be
+  running from an older checkout — `sed -n '389,398p' wiki-ingest.py` and confirm no
+  `elif semantic and not lint_only` branch is present.
+- **Story:** documented as drift item #9 (`home-infra-architecture-contract`) and F10
+  (`home-infra-failure-archaeology`) — both now closed.
 
 ### Row 11 — Container crash-looping on the NAS
 
@@ -434,8 +425,8 @@ Each row below: **Cause → Experiment → Fix pointer → Story**.
 - **`docs/specs/ai-stack.md` is badly stale** — raw `:11434`, old models, MCP
   `:3001`, SSE. Treat as historical intent only. Current truth: compose files +
   `home-infra-config-reference`.
-- **`--semantic-lint` alone also runs a full ingest** (Row 10). Safe lint-only:
-  `--lint --semantic-lint`.
+- **`--semantic-lint` alone previously also ran a full ingest** (Row 10) — fixed
+  2026-07-03; safe to use alone now.
 - **A broker 503 is arbitration, not an outage** (Row 2). Restarting things because
   of a 503 during a gaming session makes it worse.
 - **LibreChat silently drops LAN MCP servers** missing from
@@ -499,6 +490,6 @@ Each row below: **Cause → Experiment → Fix pointer → Story**.
   - Cron hour: `cat vault-indexer/crontab` (repo) — currently `0 4 * * *`
   - allowedDomains: `grep -A8 allowedDomains compose/desktop/librechat.yaml`
   - Retry ladder: `grep -n 'RETRY_DELAYS' wiki-ingest.py` — currently `[10, 30, 60, 120, 180]`
-  - `--semantic-lint` bug still present: `grep -n -A1 'elif semantic and not lint_only' wiki-ingest.py`
+  - `--semantic-lint` bug fixed (expect no match): `grep -n -A1 'elif semantic and not lint_only' wiki-ingest.py`
   - Broker up: `curl -s -o /dev/null -w '%{http_code}\n' http://10.0.0.243:11435/` (expect 404)
   - Indexer excludes: `grep -n 'EXCLUDE_DIRS' vault-indexer/indexer.py` — currently `{.agents,.claude,.obsidian,_raw}`

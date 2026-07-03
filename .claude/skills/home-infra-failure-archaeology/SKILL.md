@@ -51,12 +51,12 @@ Chronological. "Settled" means: do not re-litigate without new evidence.
 | F7 | Infinity ROCm image unsupported on RDNA4 → CPU fallback; `/embeddings` vs `/embeddings_image` trap | Resolved (settled) |
 | F8 | LightRAG SLM extraction fails ~35% at 8b → MiniRAG pivot; workarounds rejected | Open until migration completes |
 | F9 | mxbai-embed-large truncates past ~1k tokens, silently losing long-doc tails → bge-m3 | Resolved by migration in flight |
-| F10 | `wiki-ingest.py --semantic-lint` alone runs a full ingest (entry-point bug) | OPEN bug |
+| F10 | `wiki-ingest.py --semantic-lint` alone runs a full ingest (entry-point bug) | CLOSED — fixed 2026-07-03 |
 | F11 | `lightrag-trading` live on NAS :9622 — in no repo file; conflicts with planned minirag port | OPEN MYSTERY — flag, do not touch |
 | F12 | registry + minirag in repo compose but not running live — migration stalled | OPEN — the hardest live problem |
 | F13 | `docs/specs/ai-stack.md` rot — written as plan, never synced after execution | OPEN process failure |
 | F14 | Crontab 2am→4am uncommitted; watchtower also at 4am | Minor, open |
-| F15 | `indexer.py --cleanup` sends uppercase `"FAILED"` → 422 on current LightRAG; failed-doc census silently errors | OPEN bug |
+| F15 | `indexer.py --cleanup` sends uppercase `"FAILED"` → 422 on current LightRAG; failed-doc census silently errors | CLOSED — fixed 2026-07-03 |
 
 ---
 
@@ -279,7 +279,7 @@ Chronological. "Settled" means: do not re-litigate without new evidence.
   model's effective token window against your actual document length distribution, not
   against the marketing context length.
 
-## F10 — `wiki-ingest.py --semantic-lint` runs a full ingest (OPEN bug)
+## F10 — `wiki-ingest.py --semantic-lint` runs a full ingest (CLOSED)
 
 - **Symptom:** Running `python3 wiki-ingest.py --semantic-lint` — which the docstring
   (line 14) documents as "structural + semantic (LLM) lint" — **also performs a full
@@ -293,13 +293,15 @@ Chronological. "Settled" means: do not re-litigate without new evidence.
       run_ingest()
   ```
 
-  The `elif` branch fires for `--semantic-lint` alone and calls `run_ingest()` again —
-  contradicting the docstring. (`wiki-ingest.py` sits at the repo root, untracked; it runs
+  The `elif` branch fired for `--semantic-lint` alone and called `run_ingest()` again —
+  contradicting the docstring. (`wiki-ingest.py` sits at the repo root; it runs
   on the MacBook against the local vault, model qwen3:8b via broker `:11435`.)
-- **Safe invocation:** pass **both** flags — `python3 wiki-ingest.py --lint --semantic-lint`
-  — to get lint-only behavior.
-- **Status:** **OPEN** as of 2026-07-02. Fixing it is a behavior change to an operational
-  script — route through `home-infra-change-control`.
+- **Fix (2026-07-03):** removed the erroneous `elif` branch — `run_ingest()` now only
+  fires when neither `--lint` nor `--semantic-lint` is passed, matching the docstring.
+  Verified all 4 flag combinations against expected `(ingest, structural, semantic)` call
+  behavior. `--semantic-lint` alone is now safe to run — the "pass both flags" workaround
+  below is no longer required, but still works identically (harmless no-op double-lint).
+- **Status:** **CLOSED** 2026-07-03.
 - **Why it matters:** ingest is destructive-ish — it mutates wiki pages and **deletes**
   `_raw/` captures (per ADR 0012's designed flow). An unintended ingest triggered by "just
   a lint" can consume captures before you meant to.
@@ -392,7 +394,7 @@ Chronological. "Settled" means: do not re-litigate without new evidence.
 - **Lesson:** When moving a cron, grep the compose for every other scheduler in the same
   window before picking the new time.
 
-## F15 — `--cleanup` failed-doc census silently errors (uppercase `status_filter`)
+## F15 — `--cleanup` failed-doc census silently errors (uppercase `status_filter`) (CLOSED)
 
 - **Symptom:** `indexer.py --cleanup`'s failed-document report ("Querying LightRAG for
   failed docs") silently errors against the current LightRAG — the census produces no
@@ -407,9 +409,9 @@ Chronological. "Settled" means: do not re-litigate without new evidence.
   ~line 299. The diagnostics script
   (`.claude/skills/home-infra-diagnostics/scripts/index-state.py`) already sends
   lowercase and is correct.
-- **Status:** **OPEN** — repo fix pending (fixing `indexer.py` is a code change; route
-  through `home-infra-change-control`). Until then, use the corrected curl in
-  `home-infra-debugging-playbook` Row 4 or `index-state.py --failed` for the census.
+- **Fix (2026-07-03):** `vault-indexer/indexer.py:299` now sends lowercase
+  `"status_filter": "failed"`, matching `index-state.py` and the live API enum.
+- **Status:** **CLOSED** 2026-07-03.
 - **Lesson:** verify enum case against `/openapi.json` when hand-rolling status filters —
   a 422 inside a wrapper that swallows errors surfaces as a silently empty report.
 
@@ -436,12 +438,14 @@ batch-insert/track_status, 0003 two-stage archive→delete, 0005 LibreChat on de
 ## Open items at a glance (as of 2026-07-02)
 
 - F5 — `654891a` fail-hard fix absent from local `main` (present on `add-embed-stack` and `origin/main`; local `main` is a divergent rewrite).
-- F8/F12 — MiniRAG migration stalled pre-Step-1; everything about it uncommitted.
-- F10 — `wiki-ingest.py --semantic-lint` entry-point bug.
+- F8/F12 — MiniRAG migration stalled pre-Step-1; everything about it uncommitted. Phase 0
+  gates resolved 2026-07-03 (minirag → :9623, Route B shipping, NAS memory: free first);
+  campaign now proceeding — see `minirag-migration-campaign`.
+- F10 — `wiki-ingest.py --semantic-lint` entry-point bug. **CLOSED 2026-07-03.**
 - F11 — `lightrag-trading` on :9622 — undocumented; ask Preston.
 - F13 — `ai-stack.md` rot.
 - F14 — crontab change uncommitted; 4am watchtower overlap unexamined.
-- F15 — `indexer.py --cleanup` failed-doc census silently errors (uppercase `status_filter`).
+- F15 — `indexer.py --cleanup` failed-doc census silently errors (uppercase `status_filter`). **CLOSED 2026-07-03.**
 
 ## When NOT to use this skill
 
@@ -474,7 +478,8 @@ batch-insert/track_status, 0003 two-stage archive→delete, 0005 LibreChat on de
   - Fail-hard fix still absent from local main (F5): `git branch -a --contains 654891a`
     (expect `add-embed-stack` and `remotes/origin/main`, NOT local `main`) and
     `git show main:vault-indexer/indexer.py | sed -n '25p'`
-  - wiki-ingest bug still present (F10): `sed -n '389,397p' wiki-ingest.py`
+  - wiki-ingest bug fix still in place (F10): `sed -n '389,398p' wiki-ingest.py` (expect
+    no `elif semantic and not lint_only` branch)
   - Production LLM/embedding models (F8, F9): `grep -n 'LLM_MODEL\|EMBEDDING_MODEL' compose/nas/docker-compose.yml`
   - Crontab drift (F14): `git diff HEAD -- vault-indexer/crontab && grep -n schedule compose/nas/docker-compose.yml`
   - Transport reality (F6): `grep -n 'type:\|url:' compose/desktop/librechat.yaml`

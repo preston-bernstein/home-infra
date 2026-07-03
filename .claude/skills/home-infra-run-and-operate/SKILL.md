@@ -232,13 +232,14 @@ Syncthing propagates the results.
 |---|---|
 | `.venv/bin/python3 wiki-ingest.py` | Ingest all Captures in `_raw/` one at a time (full merge context), then structural lint |
 | `.venv/bin/python3 wiki-ingest.py --lint` | Structural lint ONLY (orphan pages, broken wikilinks) — no LLM calls, no writes |
-| `.venv/bin/python3 wiki-ingest.py --lint --semantic-lint` | **The safe full lint**: structural + semantic (LLM) lint, NO ingest |
+| `.venv/bin/python3 wiki-ingest.py --lint --semantic-lint` | Structural + semantic (LLM) lint, NO ingest |
+| `.venv/bin/python3 wiki-ingest.py --semantic-lint` | Same as above (structural + semantic lint, NO ingest) — safe on its own as of the 2026-07-03 fix, see below |
 | `BATCH_SIZE=3 .venv/bin/python3 wiki-ingest.py` | Bulk mode: one LLM call per group of 3 — faster, but relevant-page merge context is disabled, so merges are weaker. Use only for big backlogs you'll lint after |
 
-> **WARNING — known bug:** `--semantic-lint` used ALONE also runs a **full ingest** —
-> if you only want to lint, always pass `--lint --semantic-lint` together; full story:
-> `home-infra-failure-archaeology` F10. Do not "fix" the script mid-operation — see
-> section 7.
+> **Fixed 2026-07-03:** `--semantic-lint` used alone previously also ran a full ingest.
+> The entry-point conditional was corrected; full story: `home-infra-failure-archaeology`
+> F10 (now CLOSED). `--lint --semantic-lint` still works identically if you prefer to be
+> explicit.
 
 ### Behavior you should expect (all verified in source)
 

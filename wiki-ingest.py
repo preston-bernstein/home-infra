@@ -393,8 +393,6 @@ if __name__ == "__main__":
 
     if not lint_only and not semantic:
         run_ingest()
-    elif semantic and not lint_only:
-        run_ingest()
 
     run_structural_lint()
 
