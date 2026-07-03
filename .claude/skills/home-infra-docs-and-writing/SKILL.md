@@ -183,7 +183,7 @@ When editing or adding a skill under `.claude/skills/`:
 
 ## 7. Commit message style
 
-Derived from the actual `git log` of this repo (5 commits on main + branch, all by Preston):
+Derived from the actual `git log` of this repo (15 commits on main as of 2026-07-03, all by Preston):
 
 - **Subject:** imperative mood, no trailing period, ≤ ~72 chars, specific about the object: `wire all Ollama consumers through ollama-resource-broker`, `fix secrets hygiene and add .env.example files for all stacks`, `Add embed-stack: Infinity SigLIP CPU server for estate-scraper`. History uses both capitalized and lowercase first words — either is acceptable; imperative is not optional.
 - **Body:** either short prose paragraphs explaining what and *why* (including the constraint that forced the choice — "Runs on CPU because the desktop GPU … Infinity's prebuilt ROCm image (MI200/MI300 only) does not support"), or `- ` bullets when the commit touches several files, one bullet per logical change naming the file/service. Machine-and-lane specifics are spelled out (`Desktop: LibreChat + vision-mcp → :11435 (interactive)`).
