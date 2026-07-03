@@ -96,7 +96,7 @@ ssh -i ~/.ssh/agent_ed25519 agent@10.0.0.250 'cat /volume1/docker/ai/docker-comp
   | diff - compose/nas/docker-compose.yml
 
 # Desktop compose (deploy path /opt/docker/librechat-stack/ — the in-file header
-# comment saying /var/data/docker is stale; see drift register)
+# used to wrongly say /var/data/docker, fixed 2026-07-03; see drift register)
 ssh -i ~/.ssh/agent_ed25519 agent@10.0.0.243 'cat /opt/docker/librechat-stack/docker-compose.yml' \
   | diff - compose/desktop/docker-compose.yml
 

@@ -48,7 +48,7 @@ See [ADR 0002](../adr/0002-batch-insert-track-status.md).
 
 ### State file
 
-`/state/hashes.json` — persisted at `/volume1/docker/vault-indexer/` on NAS.
+`/state/hashes.json` — persisted at `/volume1/docker/ai/vault-indexer/` on NAS.
 
 ```json
 {
@@ -145,11 +145,11 @@ vault-indexer:
   restart: always
   environment:
     - LIGHTRAG_URL=http://lightrag:9621
-    - LIGHTRAG_API_KEY=CHANGE_ME        # rotate before use
+    - LIGHTRAG_API_KEY=${LIGHTRAG_API_KEY}
     - VAULT_PATH=/vault
   volumes:
     - /volume1/obsidian-vault:/vault:ro
-    - /volume1/docker/vault-indexer:/state
+    - /volume1/docker/ai/vault-indexer:/state
   networks:
     - ai-net
 ```

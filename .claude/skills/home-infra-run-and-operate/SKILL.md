@@ -203,7 +203,7 @@ never re-posted, but note the code re-archives only entries *missing* the stamp)
 | What | Where |
 |---|---|
 | LibreChat + MongoDB data | `/opt/docker/librechat-stack/data/` (`librechat/`, `mongodb/`) |
-| LibreChat stack compose + `librechat.yaml` + `.env` | `/opt/docker/librechat-stack/` (the compose header saying `/var/data/docker` is stale — drift register) |
+| LibreChat stack compose + `librechat.yaml` + `.env` | `/opt/docker/librechat-stack/` (the compose header used to wrongly say `/var/data/docker`, fixed 2026-07-03) |
 | SigLIP model cache (infinity-siglip) | `/opt/docker/embed-stack/hf-cache/` |
 | Embed stack compose | `/opt/docker/embed-stack/docker-compose.yml` (owner: `embed` service user) |
 

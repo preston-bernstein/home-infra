@@ -24,7 +24,7 @@ re-verification one-liner in section 7.
 Jargon used below:
 - **broker** = ollama-resource-broker (repo `~/dev/ollama-resource-broker` on the desktop). Arbitrates the shared GPU; returns 503 when busy — clients must retry.
 - **RAG Engine** = the LightRAG (today) / MiniRAG (migration target) container on the NAS. API details live in `rag-stack-reference`.
-- **repo compose** = files under `compose/` in this repo. Deploy paths: NAS → `/volume1/docker/ai/docker-compose.yml`; desktop → `/opt/docker/librechat-stack/` (the header comment in `compose/desktop/docker-compose.yml` saying `/var/data/docker` is stale); embed-stack → `/opt/docker/embed-stack/`.
+- **repo compose** = files under `compose/` in this repo. Deploy paths: NAS → `/volume1/docker/ai/docker-compose.yml`; desktop → `/opt/docker/librechat-stack/` (the header comment in `compose/desktop/docker-compose.yml` used to wrongly say `/var/data/docker`, fixed 2026-07-03); embed-stack → `/opt/docker/embed-stack/`.
 
 ---
 

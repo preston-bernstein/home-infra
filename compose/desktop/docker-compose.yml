@@ -1,6 +1,6 @@
 # Desktop compose — multimedia (10.0.0.243)
-# Deploy path: /var/data/docker/docker-compose.yml (or wherever Docker data lives)
-# See docs/specs/ai-stack.md — Phase 2
+# Deploy path: /opt/docker/librechat-stack/docker-compose.yml
+# See docs/specs/ai-stack.md — Phase 2 (historical intent only; badly stale)
 
 services:
   librechat:

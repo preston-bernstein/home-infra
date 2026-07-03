@@ -21,7 +21,7 @@ Deploy paths (repo file → live location):
 | `compose/desktop/docker-compose.yml` | Desktop 10.0.0.243 (multimedia) | `/opt/docker/librechat-stack/docker-compose.yml` |
 | `compose/desktop/embed-stack/docker-compose.yml` | Desktop 10.0.0.243 | `/opt/docker/embed-stack/docker-compose.yml` |
 
-**Trap:** the header comment in `compose/desktop/docker-compose.yml` says deploy path `/var/data/docker/` — that comment is STALE. The real path is `/opt/docker/librechat-stack/` (the compose's own volume mounts confirm it: `/opt/docker/librechat-stack/data/...`).
+**Trap (fixed 2026-07-03):** the header comment in `compose/desktop/docker-compose.yml` used to say deploy path `/var/data/docker/` — that was STALE. It now correctly says `/opt/docker/librechat-stack/` (the compose's own volume mounts confirm it: `/opt/docker/librechat-stack/data/...`).
 
 **Change control:** deploying, restarting, or reconfiguring a *live* service is a gated, behavior-changing action — class (c) in `home-infra-change-control`. Read that skill before touching anything running. Image builds on the MacBook are ungated; repo compose/config EDITS are Class B per `home-infra-change-control` (secrets scan + `:11434` grep + human review of the diff).
 
@@ -150,7 +150,7 @@ Order matters. Everything below is derived from repo files; live-machine specifi
 | `sudo docker` on NAS | `command not found` | `sudo /usr/local/bin/docker` |
 | `ai-net` network missing | `network ai_ai-net declared as external, but could not be found` | `docker network create ai_ai-net` first |
 | `.env.example` files are dotfiles | "there are no env templates in the repo" | `ls -la`; they exist at repo root, `compose/nas/`, `compose/desktop/` |
-| Desktop compose header says `/var/data/docker` | deploy to wrong path | Real path is `/opt/docker/librechat-stack/` (stale comment) |
+| Desktop compose header said `/var/data/docker` (fixed 2026-07-03) | would have deployed to wrong path | Real path is `/opt/docker/librechat-stack/` |
 | Trusting an MCP README over compose | wrong package/port assumed (`mcp/lightrag/README.md` had this exact drift until fixed 2026-07-03) | compose `command:` always wins over Dockerfile CMD and README prose |
 | rsync to Synology | rsync-over-ssh blocked | `docker save \| ssh ... docker load`; plain scp needs `-O` |
 | New desktop service run as `preston` | violates standing instruction | dedicated nologin service user per service |
