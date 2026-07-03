@@ -296,7 +296,7 @@ def run_cleanup(state: dict) -> dict:
         page, stuck = 1, []
         while True:
             resp = _post("/documents/paginated", {
-                "page": page, "page_size": 200, "status_filter": "FAILED"
+                "page": page, "page_size": 200, "status_filter": "failed"
             })
             docs = resp.get("documents", [])
             stuck.extend(docs)
