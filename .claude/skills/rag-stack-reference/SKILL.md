@@ -193,8 +193,8 @@ Vocabulary (`CONTEXT.md`): a **Home MCP** is an MCP server hosted on home infras
   `--mcp-transport streamable-http --mcp-streamable-http-path /mcp --mcp-stateless-http`
   (`compose/nas/docker-compose.yml`); vision-mcp `:3003` and proton-email-mcp `:3004` on
   the desktop; `compose/desktop/librechat.yaml` declares all three `type:
-  "streamable-http"`. (`mcp/lightrag/README.md` still says SSE and port 3001 — stale;
-  compose is the contract.)
+  "streamable-http"`. (`mcp/lightrag/README.md` used to say SSE and port 3001 — fixed
+  2026-07-03; compose remains the contract regardless of what the README says.)
 - **LibreChat SSRF gate:** LibreChat blocks MCP requests to private-LAN IPs unless the
   origin is listed in `mcpSettings.allowedDomains` in `librechat.yaml` — and it blocks
   **silently** (the MCP just never appears/works). Current allowlist:

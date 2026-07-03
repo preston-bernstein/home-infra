@@ -216,9 +216,10 @@ Chronological. "Settled" means: do not re-litigate without new evidence.
 - **Status:** Superseded in practice; **ADR 0006 not yet updated.** The ADR's real decision —
   networked HTTP transport hosted once on the NAS, instead of stdio installed per client —
   is still fully valid; only the transport name is stale.
-- **Related stale docs:** `mcp/lightrag/README.md` still says package `daniel-lightrag-mcp`
-  and port 3001; the Dockerfile pip-installs `lightrag-mcp` (and its `EXPOSE 3001` is
-  unused); compose runs it on **:3002**. Compose wins.
+- **Related stale docs (CLOSED 2026-07-03):** `mcp/lightrag/README.md` used to say
+  package `daniel-lightrag-mcp` and port 3001; both the README and the Dockerfile
+  (`EXPOSE`/CMD) now say `lightrag-mcp`/:3002, matching compose (which always wins
+  regardless of what either file says).
 - **Lesson:** Read ADRs for the decision *shape*, not the literal parameter values —
   cross-check parameters against compose (see drift register in
   `home-infra-architecture-contract`).

@@ -370,9 +370,10 @@ Each row below: **Cause → Experiment → Fix pointer → Story**.
   don't resolve it unilaterally.
 - **Fix pointer:** **FLAG — confirm ownership of `:9622`/`lightrag-trading` with
   Preston before touching that port. Do not stop, rebind, or redeploy over it.**
-  Drift register (authoritative copy) → `home-infra-architecture-contract`. Also
-  stale-port traps: `mcp/lightrag/README.md` says :3001 but compose runs
-  lightrag-mcp on :3002 — compose wins.
+  Drift register (authoritative copy) → `home-infra-architecture-contract`. (The
+  `mcp/lightrag/README.md` :3001/SSE staleness that used to live here was fixed
+  2026-07-03 — README and Dockerfile now both say :3002/streamable-http, matching
+  compose, which always wins over either anyway.)
 - **Story:** `lightrag-trading` (0.0.0.0:9622→9621) showed up in live `docker ps`
   2026-07-02 with zero repo footprint — undocumented live reality. See
   `home-infra-failure-archaeology`.
@@ -444,8 +445,9 @@ Each row below: **Cause → Experiment → Fix pointer → Story**.
 - **04:00 is a double-load window**: vault-indexer cron AND watchtower both fire at
   4am (`vault-indexer/crontab`; watchtower `--schedule "0 0 4 * * *"`). Weirdness
   observed "around 4am" may be either — or their interaction.
-- **`mcp/lightrag/README.md` is stale** (package `daniel-lightrag-mcp`, port 3001).
-  The Dockerfile installs `lightrag-mcp`; compose runs it on :3002. Compose wins.
+- **`mcp/lightrag/README.md` was stale, fixed 2026-07-03** (used to say package
+  `daniel-lightrag-mcp`, port 3001). The Dockerfile installs `lightrag-mcp` and now
+  both it and the README say :3002, matching compose (which always wins regardless).
 - **The vault is a Syncthing replica** — any file you write there appears on every
   synced device within seconds. Debug artifacts belong elsewhere (the one sanctioned
   exception: wiki-ingest's own `_raw/*-debug.txt` dumps).

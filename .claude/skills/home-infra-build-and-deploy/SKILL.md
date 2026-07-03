@@ -151,7 +151,7 @@ Order matters. Everything below is derived from repo files; live-machine specifi
 | `ai-net` network missing | `network ai_ai-net declared as external, but could not be found` | `docker network create ai_ai-net` first |
 | `.env.example` files are dotfiles | "there are no env templates in the repo" | `ls -la`; they exist at repo root, `compose/nas/`, `compose/desktop/` |
 | Desktop compose header says `/var/data/docker` | deploy to wrong path | Real path is `/opt/docker/librechat-stack/` (stale comment) |
-| `mcp/lightrag/README.md` says `daniel-lightrag-mcp` / :3001 | wrong package installed, wrong port probed | Dockerfile installs `lightrag-mcp`; compose runs it on :3002 |
+| Trusting an MCP README over compose | wrong package/port assumed (`mcp/lightrag/README.md` had this exact drift until fixed 2026-07-03) | compose `command:` always wins over Dockerfile CMD and README prose |
 | rsync to Synology | rsync-over-ssh blocked | `docker save \| ssh ... docker load`; plain scp needs `-O` |
 | New desktop service run as `preston` | violates standing instruction | dedicated nologin service user per service |
 | NAS `:9622` | live NAS runs undocumented `lightrag-trading` on :9622 (as of 2026-07-02); repo minirag moved to `:9623` 2026-07-03, no longer contests it | FLAG — confirm ownership with Preston before touching :9622; do not resolve unilaterally |
