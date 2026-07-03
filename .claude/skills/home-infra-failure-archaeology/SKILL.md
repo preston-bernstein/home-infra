@@ -65,7 +65,7 @@ Chronological. "Settled" means: do not re-litigate without new evidence.
 | F9 | mxbai-embed-large truncates past ~1k tokens, silently losing long-doc tails → bge-m3 | Resolved by migration in flight |
 | F10 | `wiki-ingest.py --semantic-lint` alone runs a full ingest (entry-point bug) | CLOSED — fixed 2026-07-03 |
 | F11 | `lightrag-trading` live on NAS :9622 — in no repo file; port conflict with minirag resolved 2026-07-03 (minirag moved to :9623), identity still unknown | OPEN MYSTERY — flag, do not touch |
-| F12 | minirag deployed + health-verified live 2026-07-03 (PR #3); registry intentionally not running (Route B) | OPEN — Phases 4/5 (index, MCP compat) remain, no longer stalled |
+| F12 | minirag deployed + health-verified live 2026-07-03 (PR #3); but `indexer.py`'s document API calls match none of MiniRAG's confirmed endpoints | OPEN — new blocker found; Phase 4 needs a design decision before it can run |
 | F13 | `docs/specs/ai-stack.md` rot — written as plan, never synced after execution | OPEN process failure |
 | F14 | Crontab 2am→4am; watchtower also at 4am | Commit drift CLOSED 2026-07-03; 4am overlap still open |
 | F15 | `indexer.py --cleanup` sends uppercase `"FAILED"` → 422 on current LightRAG; failed-doc census silently errors | CLOSED — fixed 2026-07-03 |
@@ -360,11 +360,23 @@ Chronological. "Settled" means: do not re-litigate without new evidence.
   4. Real API-surface finding: MiniRAG has **no** `/documents/pipeline_status` — use
      `/health` instead (LightRAG-ism the spec assumed by analogy, now corrected in
      `minirag-migration-campaign` Phase 3).
+- **New blocker found 2026-07-03 (this authoring pass, cross-referencing PR #3's confirmed
+  MiniRAG endpoint list against `vault-indexer/indexer.py`):** the vault-indexer's own HTTP
+  calls — `/documents/pipeline_status`, `/documents/texts` (batch insert),
+  `/documents/track_status/{id}` (poll), `/documents/delete_document`, `/documents/paginated`
+  — match **none** of MiniRAG's confirmed paths (`/documents/scan`, `/documents/scan-progress`,
+  `/documents/upload`, `/documents/text`, `/documents/file`, `/documents/batch`). MiniRAG
+  uses a scan-based ingestion model; `indexer.py` is built around LightRAG's submit-and-poll
+  `track_id` pattern (ADR 0002). Running `indexer.py` against MiniRAG as-is would 404 on the
+  first `pipeline_status` check and exit cleanly without indexing anything (safe failure,
+  but a dead end) — Phase 4 cannot proceed until this is resolved by design decision, not
+  code improvisation.
 - **Status:** **OPEN, but no longer stalled** — Phases 0-3 done. Phase 4 (initial parallel
-  index into MiniRAG) and Phase 5 (lightrag-mcp ↔ MiniRAG compatibility — genuinely
-  unverified, and now more uncertain given the `/health`-vs-`/documents/pipeline_status`
-  API surface difference) are the remaining work; see `minirag-migration-campaign` for the
-  executable next steps.
+  index into MiniRAG) is now blocked on the API-shape mismatch above, not just readiness.
+  Phase 5 (lightrag-mcp ↔ MiniRAG compatibility) was already flagged unverified and this
+  finding makes incompatibility more likely, not less — the MCP layer sits on the same
+  document API. See `minirag-migration-campaign` Phase 4 for the flagged blocker and next
+  steps.
 - **Do not** attempt to "clean up" the unused registry/minirag compose entries — they are
   the migration plan, not cruft. To execute the migration, use `minirag-migration-campaign`
   (the executable step-by-step home).
@@ -462,9 +474,13 @@ batch-insert/track_status, 0003 two-stage archive→delete, 0005 LibreChat on de
 - F8/F12 — MiniRAG migration: repo state all committed (`ebc8e9e`, `521df55`, `8fcc49c`),
   Phase 0 gates resolved 2026-07-03, and Phases 1-3 actually executed live 2026-07-03
   (PR #3) — models pulled, image built (two real build traps found/fixed), minirag
-  deployed and health-verified on the NAS (~508MB RSS). Remaining: Phase 4 (initial
-  parallel index) and Phase 5 (lightrag-mcp compatibility — MiniRAG's API surface differs
-  from LightRAG's more than the spec assumed). See `minirag-migration-campaign`.
+  deployed and health-verified on the NAS (~508MB RSS). **New blocker found 2026-07-03:**
+  `indexer.py`'s document API calls (`/documents/texts`, `/documents/track_status`,
+  `/documents/pipeline_status`, `/documents/delete_document`, `/documents/paginated`)
+  match none of MiniRAG's confirmed endpoints — Phase 4 (initial index) cannot proceed
+  without a design decision on how to adapt. Phase 5 (lightrag-mcp compatibility) was
+  already flagged unverified; this finding makes it more likely to need work too, since
+  the MCP layer sits on the same document API. See `minirag-migration-campaign` Phase 4.
 - F10 — `wiki-ingest.py --semantic-lint` entry-point bug. **CLOSED 2026-07-03.**
 - F11 — `lightrag-trading` on :9622 — undocumented; ask Preston. (Port conflict with
   minirag resolved 2026-07-03; the container's identity is still unknown.)

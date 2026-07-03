@@ -336,6 +336,24 @@ BRANCHES:
 
 ### Phase 4 — Initial index into MiniRAG (separate state file)
 
+**NEWLY DISCOVERED BLOCKER (found 2026-07-03, cross-referencing Phase 3's confirmed MiniRAG
+`/openapi.json` path list against `vault-indexer/indexer.py`'s actual calls) — DO NOT RUN
+Phase 4 as currently written without resolving this first:**
+`indexer.py` calls `/documents/pipeline_status`, `/documents/texts` (batch insert),
+`/documents/track_status/{id}` (poll for `doc_id`s), `/documents/delete_document`, and
+`/documents/paginated` — **none of these exist on MiniRAG.** MiniRAG's confirmed document
+API is `/documents/scan`, `/documents/scan-progress`, `/documents/upload`, `/documents/text`
+(singular), `/documents/file`, `/documents/batch` — a scan-based ingestion model, not
+LightRAG's submit-and-poll `track_id` pattern (ADR 0002) that `indexer.py` is built around.
+This is a bigger problem than Step 3's "lightrag-mcp compatibility TBD" — it's the vault-
+indexer's own direct HTTP calls that don't match MiniRAG's shape. Running `indexer.py`
+against MiniRAG right now would 404 on the very first `pipeline_status` check and exit
+before writing anything (the safest possible failure — see `pipeline_is_idle()` — but still
+a dead end, not a working indexer). **This needs a design decision (adapt `indexer.py` to
+MiniRAG's scan-based API, write a MiniRAG-specific client path, or something else) — route
+through `home-infra-change-control`, do not improvise a fix.** Full evidence in
+`home-infra-failure-archaeology` (new finding, F12 update).
+
 PRECONDITIONS (all hard):
 1. Phase 3 EXPECTED met.
 2. **The `vault-indexer:latest` image ON THE NAS honors `STATE_FILE` and excludes `_raw/`.**

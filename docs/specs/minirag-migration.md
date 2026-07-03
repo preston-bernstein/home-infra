@@ -72,14 +72,33 @@ docker compose up -d minirag
 docker logs minirag   # expect startup, not crash
 ```
 
-Verify MiniRAG API reachable:
+Verify MiniRAG API reachable — **note: MiniRAG has no `/documents/pipeline_status`
+endpoint** (that's a LightRAG-ism; confirmed against MiniRAG's `/openapi.json` 2026-07-03).
+Use `/health` instead, which needs no `X-API-Key`:
 ```bash
-curl -s -H "X-API-Key: ${LIGHTRAG_API_KEY}" http://10.0.0.250:9623/documents/pipeline_status
+curl -s http://10.0.0.250:9623/health
 ```
+
+**Status: Step 1 DONE as of 2026-07-03** — deployed and health-verified (`/health` → 200,
+config confirms `qwen2.5:14b`/`bge-m3`; ~508MB RSS memory measured). Two build fixes were
+needed beyond this doc's Prerequisites (missing `sentence-transformers` dependency, and an
+unpinned `torch` install pulling ~5GB of unused CUDA wheels) — see `minirag-migration-campaign`
+Phase 2 for the exact fix.
 
 ---
 
 ## Step 2 — Initial index into MiniRAG (separate state file)
+
+**BLOCKED as written (found 2026-07-03):** `indexer.py` calls `/documents/pipeline_status`,
+`/documents/texts`, `/documents/track_status/{id}`, `/documents/delete_document`, and
+`/documents/paginated` — none of which exist on MiniRAG. MiniRAG's confirmed API
+(`/documents/scan`, `/documents/scan-progress`, `/documents/upload`, `/documents/text`,
+`/documents/file`, `/documents/batch`) is scan-based, not LightRAG's submit-and-poll
+`track_id` pattern this indexer is built around (ADR 0002). Running the command below
+today will 404 on the first `pipeline_status` check and exit without indexing — safe, but
+a dead end. This needs a design decision on how to adapt before Step 2 can actually run;
+see `minirag-migration-campaign` Phase 4. The command below is kept as the *intended*
+shape once that's resolved.
 
 Run vault-indexer against MiniRAG with `STATE_FILE` overridden. LightRAG and `hashes.json` are untouched.
 
@@ -112,7 +131,11 @@ tail -f /volume1/docker/ai/vault-indexer/hashes-minirag.json   # grows as files 
 
 ## Step 3 — Verify lightrag-mcp against MiniRAG
 
-**TBD: lightrag-mcp API compatibility with MiniRAG not verified.**
+**TBD: lightrag-mcp API compatibility with MiniRAG not verified — and Step 2's finding
+makes incompatibility more likely, not less.** lightrag-mcp wraps the same document API
+`indexer.py` uses (`/documents/texts`, `/documents/track_status`, etc.), none of which
+exist on MiniRAG per the confirmed `/openapi.json` path list (see Step 2). Expect this
+step to surface the same mismatch rather than a clean pass.
 
 1. Temporarily run lightrag-mcp pointed at MiniRAG:9623:
 ```bash
@@ -166,9 +189,9 @@ mv /volume1/docker/ai/vault-indexer/hashes-minirag.json \
 docker compose up -d minirag lightrag-mcp vault-indexer
 ```
 
-**e. Verify:**
+**e. Verify:** MiniRAG has no `/documents/pipeline_status` — use `/health` (see Step 1 note):
 ```bash
-curl -s -H "X-API-Key: ${LIGHTRAG_API_KEY}" http://10.0.0.250:9621/documents/pipeline_status
+curl -s http://10.0.0.250:9621/health
 # Then test a query from LibreChat Vault Assistant
 ```
 
