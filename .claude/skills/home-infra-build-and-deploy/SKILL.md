@@ -40,7 +40,7 @@ Custom images defined in this repo (as of 2026-07-02):
 | Image | Build context | Runs on | Notes |
 |---|---|---|---|
 | `vault-indexer:latest` | `vault-indexer/` | NAS | `python:3.12-slim` + cron; copies `indexer.py` + `crontab` (nightly 4am run). Rebuild whenever `indexer.py` or `crontab` changes — the code is baked in, not volume-mounted. |
-| `lightrag-mcp:latest` | `mcp/lightrag/` | NAS | Dockerfile pip-installs **`lightrag-mcp`**. The README in that directory says `daniel-lightrag-mcp` and port 3001 — both STALE. The Dockerfile is truth for the package name; compose is truth for the port (:3002; the Dockerfile's `EXPOSE 3001` + CMD port 3001 are overridden by the compose `command:` block). |
+| `lightrag-mcp:latest` | `mcp/lightrag/` | NAS | Dockerfile pip-installs **`lightrag-mcp`** on port 3002 — the README used to say `daniel-lightrag-mcp`/3001, fixed 2026-07-03, both now agree. Compose is still the ultimate truth for the port (:3002; compose's `command:` block overrides whatever the Dockerfile CMD says regardless). |
 | `vision-mcp:latest` | `mcp/vision/` | Desktop | `python:3.12-slim` + fastmcp/httpx + `server.py`, port 3003. |
 | `10.0.0.250:5000/minirag:latest` | cloned HKUDS/MiniRAG source | NAS (migration, not yet live) | **No pre-built GHCR image exists** — must build from source. **Trap:** the upstream Dockerfile `COPY`s a `.env` that is not in their repo; you must `touch .env` in the clone or the build fails. See `docs/specs/minirag-migration.md` Prerequisites. |
 

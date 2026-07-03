@@ -208,9 +208,9 @@ lightrag-mcp --host lightrag --port 9621 --api-key ${LIGHTRAG_API_KEY}
 ```
 
 Caveats: the API key is on the command line (visible via `docker inspect`); the image's
-Dockerfile CMD defaults to port **3001** and its README says package
-`daniel-lightrag-mcp` — both stale; the Dockerfile actually pip-installs `lightrag-mcp`
-and compose's :3002 flags override the CMD. Compose is truth.
+Dockerfile CMD default and its README both said port 3001/package `daniel-lightrag-mcp`
+until fixed 2026-07-03 — both now correctly say `lightrag-mcp`/3002. Compose's :3002
+flags override the CMD regardless of what either file says; compose remains truth.
 
 ### 4.5 librechat (desktop :3080) — production
 
