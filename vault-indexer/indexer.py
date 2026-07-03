@@ -25,7 +25,7 @@ LIGHTRAG_URL = os.environ.get("LIGHTRAG_URL", "http://lightrag:9621").rstrip("/"
 LIGHTRAG_API_KEY = os.environ.get("LIGHTRAG_API_KEY") or sys.exit("LIGHTRAG_API_KEY env var is required")
 VAULT_PATH = Path(os.environ.get("VAULT_PATH", "/vault"))
 STATE_DIR = Path(os.environ.get("STATE_DIR", "/state"))
-STATE_FILE = STATE_DIR / "hashes.json"
+STATE_FILE = Path(os.environ.get("STATE_FILE", str(STATE_DIR / "hashes.json")))
 LOG_FILE = STATE_DIR / "indexer.log"
 
 BATCH_SIZE = 10
@@ -33,6 +33,8 @@ BATCH_SLEEP_S = 2
 TRACK_TIMEOUT_S = 60
 ARCHIVE_DAYS = 30
 LOG_MAX_BYTES = 1 * 1024 * 1024
+
+EXCLUDE_DIRS = frozenset({".agents", ".claude", ".obsidian", "_raw"})
 
 # --- Logging ---
 
@@ -119,6 +121,7 @@ def collect_vault_files() -> dict[str, Path]:
     return {
         str(p.relative_to(VAULT_PATH)): p
         for p in VAULT_PATH.rglob("*.md")
+        if p.relative_to(VAULT_PATH).parts[0] not in EXCLUDE_DIRS
     }
 
 # --- LightRAG ops ---

@@ -1,43 +1,21 @@
-# LightRAG + Vault Indexer Spec
+# Vault Indexer Spec
 
-Nightly Python service that reads the Obsidian vault from NAS, strips Obsidian syntax, and POSTs to the LightRAG REST API. Hash-based incremental — unchanged files are skipped. Part of Phase 1 in [ai-stack.md](ai-stack.md).
+Nightly Python service that reads the Obsidian vault from NAS, strips Obsidian syntax, and POSTs to the RAG Engine REST API. Hash-based incremental — unchanged files are skipped.
+
+**RAG Engine target:** MiniRAG (migrated from LightRAG — see ADR 0010). See [minirag-migration.md](minirag-migration.md) for the step-by-step migration guide.
 
 ## Status
 
-- LightRAG stack running: :9621 on NAS, green
-- Vault synced: 1,511 files at `/volume1/obsidian-vault`
-- **Prerequisite blocker:** embedding dimension mismatch — switch to `mxbai-embed-large` first (see [ADR 0001](../adr/0001-mxbai-embed-large.md))
-- **Not done:** `vault-indexer/indexer.py` not written
-- **Not done:** LightRAG API key still `CHANGE_ME`
+- vault-indexer deployed and running on NAS ✅
+- 369/379 files indexed (10 retried nightly) ✅
+- LightRAG API key rotated off `changeme` ✅
+- **In progress:** MiniRAG migration — see [minirag-migration.md](minirag-migration.md)
 
 ---
 
-## Prerequisite — Embedding Model Fix
+## RAG Engine API
 
-`nomic-embed-text` produces 768-dim vectors. LightRAG defaults to 1024-dim. Nothing indexes until fixed.
-
-```bash
-# On desktop (10.0.0.243)
-ollama pull mxbai-embed-large
-
-# On NAS — update /volume1/docker/ai/docker-compose.yml
-# EMBEDDING_MODEL=mxbai-embed-large
-# then:
-docker compose restart lightrag
-
-# Verify (from MacBook)
-curl -s -X POST http://10.0.0.250:9621/documents/text \
-  -H "X-API-Key: CHANGE_ME" \
-  -H "Content-Type: application/json" \
-  -d '{"text":"test","file_source":"test.md"}'
-# → get track_id, poll /documents/track_status/{track_id} → expect PROCESSED
-```
-
----
-
-## LightRAG API (verified against live /openapi.json)
-
-Auth header: `X-API-Key` (not `Authorization: Bearer`).
+Auth header: `X-API-Key` (not `Authorization: Bearer`). Verified against LightRAG; MiniRAG expected to match (TBD — verify during migration Step 3).
 
 ```
 POST /documents/texts
@@ -89,18 +67,26 @@ See [ADR 0002](../adr/0002-batch-insert-track-status.md).
 ### Run loop
 
 1. Check `pipeline_status` — if running, log warning and exit (don't double-queue)
-2. Walk `/vault` recursively, collect `.md` files
+2. Walk `/vault` recursively, collect `.md` files (skipping `EXCLUDE_DIRS`: `.agents`, `.claude`, `.obsidian`)
 3. SHA256 each file; skip if hash unchanged vs state
 4. POST changed/new in batches of 10
 5. Poll `track_status` per batch; write `doc_id` + hash to state on success
 6. Files in state but missing from vault → set `archived_at` (don't delete yet)
 7. Files with `archived_at` older than 30 days → `DELETE /documents/delete_document`, remove from state
-8. Write updated `hashes.json`
+8. Write updated state file
+
+### State file env override
+
+`STATE_FILE` env var overrides the default `$STATE_DIR/hashes.json`. Used during MiniRAG parallel testing to maintain a separate index without touching the live LightRAG state:
+
+```bash
+-e STATE_FILE=/state/hashes-minirag.json
+```
 
 ### --cleanup flag
 
 `python indexer.py --cleanup`:
-- Lists all archived docs with age and LightRAG status
+- Lists all archived docs with age and RAG Engine status
 - Prompts for confirmation before deleting
 - Also reports docs stuck in non-PROCESSED status
 
@@ -212,6 +198,7 @@ curl -H "X-API-Key: <new-key>" http://10.0.0.250:9621/documents/pipeline_status
 
 ## ADRs
 
-- [0001 — mxbai-embed-large over nomic-embed-text](../adr/0001-mxbai-embed-large.md)
 - [0002 — Batch insert + track_status for doc_ids](../adr/0002-batch-insert-track-status.md)
 - [0003 — Two-stage archive/delete](../adr/0003-two-stage-archive-delete.md)
+- [0010 — MiniRAG over LightRAG](../adr/0010-minirag-over-lightrag.md)
+- [0011 — BGE-M3 over mxbai-embed-large](../adr/0011-bge-m3-over-mxbai.md) _(supersedes 0001)_

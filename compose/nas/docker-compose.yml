@@ -41,6 +41,37 @@ services:
     networks:
       - ai-net
 
+  registry:
+    image: registry:2
+    container_name: registry
+    restart: always
+    ports:
+      - "5000:5000"
+    volumes:
+      - /volume1/docker/registry:/var/lib/registry
+    networks:
+      - ai-net
+
+  minirag:
+    image: 10.0.0.250:5000/minirag:latest
+    container_name: minirag
+    restart: always
+    ports:
+      - "9622:9721"
+    environment:
+      - LLM_BINDING=ollama
+      - LLM_MODEL=qwen2.5:14b
+      - LLM_BINDING_HOST=http://10.0.0.243:11435
+      - EMBEDDING_BINDING=ollama
+      - EMBEDDING_MODEL=bge-m3
+      - EMBEDDING_BINDING_HOST=http://10.0.0.243:11436
+      - WORKING_DIR=/app/data/rag_storage
+      - LIGHTRAG_API_KEY=${LIGHTRAG_API_KEY}
+    volumes:
+      - /volume1/docker/ai/minirag:/app/data
+    networks:
+      - ai-net
+
   vault-indexer:
     image: vault-indexer:latest
     container_name: vault-indexer
@@ -95,4 +126,5 @@ services:
 
 networks:
   ai-net:
-    driver: bridge
+    external: true
+    name: ai_ai-net
