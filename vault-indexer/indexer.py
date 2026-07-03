@@ -194,20 +194,37 @@ def insert_batch_lightrag(texts: list[str], file_sources: list[str]) -> list[dic
     except Exception:
         return []
 
+MINIRAG_INSERT_RETRIES = 3
+MINIRAG_RETRY_DELAYS_S = [15, 45, 90]
+
 def insert_batch_minirag(texts: list[str], file_sources: list[str]) -> list[dict]:
     """MiniRAG has no bulk endpoint and returns no doc_id — POST one at a time via
     /documents/text and synthesize a stable id from the content hash so incremental
     state tracking still works. InsertResponse only has status/message/document_count,
-    so "status": "processing" from a 200 response is the only success signal available."""
+    so "status": "processing" from a 200 response is the only success signal available.
+
+    Retries on failure: live Phase 4 runs (2026-07-03) saw intermittent 500s on small,
+    unremarkable files with no logged traceback — looks like transient server-side
+    flakiness (possibly first-request-of-session cold start), not a per-file problem."""
     docs = []
     for text, rel in zip(texts, file_sources):
-        try:
-            resp = _post("/documents/text", {"text": text, "description": rel},
-                         timeout=MINIRAG_INSERT_TIMEOUT_S)
-            ok = str(resp.get("status", "")).lower() not in ("failed", "error", "")
-        except Exception as e:
-            log.error(f"/documents/text failed for {rel}: {e}")
-            ok = False
+        ok = False
+        for attempt, delay in enumerate(MINIRAG_RETRY_DELAYS_S[:MINIRAG_INSERT_RETRIES], start=1):
+            try:
+                resp = _post("/documents/text", {"text": text, "description": rel},
+                             timeout=MINIRAG_INSERT_TIMEOUT_S)
+                ok = str(resp.get("status", "")).lower() not in ("failed", "error", "")
+                if ok:
+                    break
+                log.warning(f"/documents/text non-success status for {rel} "
+                            f"(attempt {attempt}/{MINIRAG_INSERT_RETRIES}): {resp}")
+            except Exception as e:
+                log.warning(f"/documents/text failed for {rel} "
+                            f"(attempt {attempt}/{MINIRAG_INSERT_RETRIES}): {e}")
+            if attempt < MINIRAG_INSERT_RETRIES:
+                time.sleep(delay)
+        if not ok:
+            log.error(f"/documents/text gave up on {rel} after {MINIRAG_INSERT_RETRIES} attempts")
         if ok:
             synthetic_id = f"minirag:{hashlib.sha256(text.encode()).hexdigest()[:16]}"
             docs.append({"file_path": rel, "id": synthetic_id, "status": "PROCESSED"})
