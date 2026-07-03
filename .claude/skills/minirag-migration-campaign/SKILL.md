@@ -340,23 +340,37 @@ BRANCHES:
 
 ### Phase 4 — Initial index into MiniRAG (separate state file)
 
-**NEWLY DISCOVERED BLOCKER (found 2026-07-03, cross-referencing Phase 3's confirmed MiniRAG
-`/openapi.json` path list against `vault-indexer/indexer.py`'s actual calls) — DO NOT RUN
-Phase 4 as currently written without resolving this first:**
-`indexer.py` calls `/documents/pipeline_status`, `/documents/texts` (batch insert),
-`/documents/track_status/{id}` (poll for `doc_id`s), `/documents/delete_document`, and
-`/documents/paginated` — **none of these exist on MiniRAG.** MiniRAG's confirmed document
-API is `/documents/scan`, `/documents/scan-progress`, `/documents/upload`, `/documents/text`
-(singular), `/documents/file`, `/documents/batch` — a scan-based ingestion model, not
-LightRAG's submit-and-poll `track_id` pattern (ADR 0002) that `indexer.py` is built around.
-This is a bigger problem than Step 3's "lightrag-mcp compatibility TBD" — it's the vault-
-indexer's own direct HTTP calls that don't match MiniRAG's shape. Running `indexer.py`
-against MiniRAG right now would 404 on the very first `pipeline_status` check and exit
-before writing anything (the safest possible failure — see `pipeline_is_idle()` — but still
-a dead end, not a working indexer). **This needs a design decision (adapt `indexer.py` to
-MiniRAG's scan-based API, write a MiniRAG-specific client path, or something else) — route
-through `home-infra-change-control`, do not improvise a fix.** Full evidence in
-`home-infra-failure-archaeology` (new finding, F12 update).
+**BLOCKER FOUND AND RESOLVED (2026-07-03):** cross-referencing Phase 3's confirmed MiniRAG
+`/openapi.json` path list against `vault-indexer/indexer.py`'s actual calls showed
+`indexer.py` calling `/documents/pipeline_status`, `/documents/texts` (batch insert),
+`/documents/track_status/{id}` (poll for `doc_id`s), and `/documents/delete_document` —
+**none of which exist on MiniRAG.** A live first attempt confirmed this: every batch failed
+with `405 Method Not Allowed` on `/documents/texts` (no state file was written — the failure
+mode is safe, just non-functional).
+
+**Decision (Preston, 2026-07-03):** patch `indexer.py` to loop MiniRAG's real
+`/documents/text` (singular) endpoint instead of redesigning around its `/documents/scan`
+ingestion model. Implemented as `RAG_ENGINE=minirag` mode (commit `418cf5c` — see
+`vault-indexer/indexer.py` `insert_batch_minirag()` / `delete_from_lightrag()` /
+`pipeline_is_idle()`). Key differences this mode papers over:
+- No bulk insert or `track_id`/`track_status` polling — one `POST /documents/text` per file,
+  synchronous. `InsertResponse` has no `doc_id`, so state tracking uses a synthetic id
+  (`minirag:<sha256-prefix-of-content>`) instead of a server-assigned one.
+- No `/documents/pipeline_status` — `pipeline_is_idle()` short-circuits to `True` for MiniRAG
+  (inserts are synchronous; there's no async pipeline to be busy on).
+- No per-document delete — MiniRAG only has a nuclear `DELETE /documents` that wipes
+  everything. `delete_from_lightrag()` refuses and logs a warning in MiniRAG mode instead of
+  calling it; archived-and-expired entries stay in the state file unpurged server-side
+  (harmless — they just won't get cleaned up until this is revisited).
+- Verified: unit-tested with mocked HTTP (success/failure/no-op-delete), and live-tested one
+  real `POST /documents/text` against the deployed instance — `200`, entity extraction ran
+  through the broker end-to-end. The default LightRAG path (`RAG_ENGINE` unset) is untouched
+  and was re-verified to still dispatch to the original bulk/track_id code.
+
+The command below now includes `-e RAG_ENGINE=minirag`, required for the fix to take effect —
+without it, `indexer.py` defaults to the LightRAG path and will 405 again exactly as before.
+
+Full history in `home-infra-failure-archaeology` (F12 update, new finding).
 
 PRECONDITIONS (all hard):
 1. Phase 3 EXPECTED met.
@@ -392,16 +406,24 @@ Two network variants — read before choosing:
 
 ```bash
 $NAS 'KEY=$(sudo grep "^LIGHTRAG_API_KEY=" /volume1/docker/ai/.env | cut -d= -f2-); \
-  sudo /usr/local/bin/docker run --rm \
+  sudo /usr/local/bin/docker run -d --name vault-indexer-minirag-init \
   --network ai_ai-net \
   -e LIGHTRAG_URL=http://minirag:9721 \
   -e LIGHTRAG_API_KEY="$KEY" \
+  -e RAG_ENGINE=minirag \
   -e VAULT_PATH=/vault \
   -e STATE_FILE=/state/hashes-minirag.json \
   -v /volume1/obsidian-vault:/vault:ro \
   -v /volume1/docker/ai/vault-indexer:/state \
   vault-indexer:latest python /app/indexer.py'
 ```
+
+(`-d --name vault-indexer-minirag-init` runs it detached so a multi-hour run survives
+independently of whatever shell/session started it — check on it later with
+`$DK logs -f vault-indexer-minirag-init` or the diagnostics script below; `docker rm` it once
+done. **Requires the image to include the RAG_ENGINE fix (commit `418cf5c`) — rebuild and
+re-ship `vault-indexer:latest` first if the deployed image predates it**, same check as
+precondition 2 above but grepping for `RAG_ENGINE` instead.)
 
 (For the spec-canonical variant, swap `--network ai_ai-net` for
 `--network container:lightrag` and set `LIGHTRAG_URL=http://10.0.0.250:<MRPORT>`.
