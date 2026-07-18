@@ -1,0 +1,57 @@
+# Scraper egress-isolation harness — second, independent gluetun+ProtonVPN
+# tunnel dedicated to future social-platform scrapers. Mirrors the shape of
+# the proven /opt/docker/arr-stack gluetun stack, but hardened:
+#   - stable consumer contract: service key `egress-gateway`
+#     (future consumers attach via `network_mode: service:egress-gateway`)
+#   - container_name `gluetun-scraper` — distinct from arr-stack's gluetun
+#   - NO `ports:` block — the control server must never be published to the
+#     host/LAN; consumers and the leak-test reach it only by sharing this
+#     service's network namespace or via `docker exec` (AC4, FR7)
+#   - default bridge networking only — NEVER `network_mode: host`, which
+#     would apply gluetun's FIREWALL DROP rules to the desktop's real netns
+#     and could firewall off the Kalshi executor (AC3, FR6)
+#   - all VPN config comes from the git-ignored `.env` beside this file —
+#     no secret values live in this compose file
+#   - conservative mem/cpu limits so a future attached consumer cannot
+#     starve the co-resident real-money Kalshi executor
+#
+# See docs/scraper-egress-harness/plan.md and requirements.md for the full
+# design, and docs/scraper-egress-harness/consumer-contract.md for how a
+# future scraper attaches to this service.
+
+services:
+  egress-gateway:
+    image: qmcgaw/gluetun
+    container_name: gluetun-scraper
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - "/dev/net/tun:/dev/net/tun"
+    env_file:
+      - .env
+    volumes:
+      - "./gluetun:/gluetun"
+    # No `ports:` block — the gluetun control server (and everything else)
+    # must not be reachable from the host/LAN. Consumers reach it only by
+    # attaching via `network_mode: service:egress-gateway`; the leak-test
+    # queries it via `docker exec`/netns only.
+    #
+    # No `network_mode:` override — default bridge networking. Do NOT set
+    # `network_mode: host` here.
+    mem_limit: 512m
+    cpus: 1.0
+    healthcheck:
+      # gluetun's own health mechanism drives HEALTH_TARGET_ADDRESS (set in
+      # .env) — an external ping performed *through the live tunnel*, served
+      # by gluetun's internal health server on localhost:9999 inside the
+      # container (200 once the tunnel is up and the target is reachable,
+      # non-200 otherwise). Querying it here, rather than only relying on
+      # the container process being alive, means `service_healthy` genuinely
+      # gates on tunnel-up. Future consumers' `depends_on:
+      # condition: service_healthy` relies on this.
+      test: ["CMD", "wget", "-qO-", "--timeout=5", "http://localhost:9999/"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
