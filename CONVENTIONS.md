@@ -92,6 +92,37 @@ Product repos own their domain logic and *attach to* / *import* the shared layer
 Polyrepo is deliberate: scoped per-repo context (a focused repo + its `CLAUDE.md`) beats one
 sprawling tree.
 
+## 9. ntfy alerts: JSON body, never header-based publish
+
+TypeScript ntfy alerting posts a JSON body, not ntfy's header-based publish API — headers must
+be ASCII-only, and emoji in a title throws `Cannot convert argument to a ByteString` on Node's
+real `fetch`. `financial-pipeline`'s header-based version would hit this the moment a
+non-ASCII title is passed (`X-Title`), and its `.catch(() => {})` — just as real today —
+swallows every failure with zero logging across all 5 call sites. Don't copy either shape.
+
+```typescript
+interface NtfyPublishPayload {
+  title: string; message: string; priority: 1 | 2 | 3 | 4 | 5;
+  tags?: string[]; click?: string; attach?: string;
+}
+
+async function publish(ntfyUrl: string, topic: string, token: string | undefined, payload: NtfyPublishPayload): Promise<boolean> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  try {
+    const res = await fetch(ntfyUrl, { method: "POST", headers, body: JSON.stringify({ topic, ...payload }) });
+    if (!res.ok) console.error("ntfy publish failed", res.status); return res.ok;
+  } catch (err) {
+    console.error("ntfy publish threw", err); return false; // real file logs both branches via its own logger
+  }
+}
+```
+
+`priority` is `1 | 2 | 3 | 4 | 5` (ntfy's valid range); `click`/`attach` must be valid URLs, not
+arbitrary strings. Documented here, not packaged — at ~15 lines it's too small for ADR-0015.
+Deeper: `fashion-monitor/packages/core/src/alerts/ntfy.ts` (canonical, JSON-body),
+`financial-pipeline/packages/adapter-utils/src/ntfy.ts` (header-based, avoid).
+
 ---
 
 **Repos that should link here from their `CLAUDE.md`:** algo-factory, algo-corpus,
