@@ -1,0 +1,27 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Shellcheck
+        uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: '.'
+          ignore_paths: 'node_modules'
+
+      - name: Python syntax check
+        run: python3 -m py_compile wiki-ingest.py vault-indexer/indexer.py mcp/vision/server.py
+
+      - name: Validate docker-compose files
+        run: |
+          for f in compose/desktop/docker-compose.yml compose/nas/docker-compose.yml compose/desktop/scraper-egress/docker-compose.yml compose/desktop/embed-stack/docker-compose.yml; do
+            echo "checking $f"
+            docker compose -f "$f" config -q
+          done

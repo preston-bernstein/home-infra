@@ -32,7 +32,7 @@ check_pair() { # $1 label  $2 host  $3 remote-path  $4 repo-path  $5 sudo-prefix
   fi
 
   local live
-  if ! live=$(ssh "${SSH_OPTS[@]}" "agent@$host" "$sudo_prefix cat $remote" 2>/dev/null); then
+  if ! live=$(ssh "${SSH_OPTS[@]}" "agent@$host" "$sudo_prefix"" cat ""$remote" 2>/dev/null); then
     printf 'ERROR: could not fetch live file (host down, ssh key, or file absent).\n'
     printf 'Hint: ssh -i ~/.ssh/agent_ed25519 agent@%s '\''%s ls -la %s'\''\n' "$host" "$sudo_prefix" "$(dirname "$remote")"
     RC=2; return
