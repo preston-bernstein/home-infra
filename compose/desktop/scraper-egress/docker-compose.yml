@@ -28,7 +28,8 @@ services:
     devices:
       - "/dev/net/tun:/dev/net/tun"
     env_file:
-      - .env
+      - path: .env
+        required: false
     volumes:
       - "./gluetun:/gluetun"
     # No `ports:` block — the gluetun control server (and everything else)
