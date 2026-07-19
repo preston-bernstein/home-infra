@@ -56,7 +56,7 @@ patch_arr() {
       local host; host=$(echo "$item" | jq -r '[.fields[]? | select(.name=="host") | .value][0] // ""')
       if is_old "$host"; then
         local new_host; new_host=$(replace_host "$host")
-        echo "  $endpoint[$id] host: $host → $new_host"
+        echo "  ${endpoint}[$id] host: $host → $new_host"
         local updated; updated=$(echo "$item" | jq --arg h "$new_host" \
           '(.fields[] | select(.name=="host")).value = $h')
         curl -sf -X PUT -H "X-Api-Key: $key" -H "Content-Type: application/json" \
@@ -106,7 +106,7 @@ patch_overseerr() {
       local host; host=$(echo "$inst" | jq -r '.hostname')
       if is_old "$host"; then
         local new_host; new_host=$(replace_host "$host")
-        echo "  $svc[$id] hostname: $host → $new_host"
+        echo "  ${svc}[$id] hostname: $host → $new_host"
         local updated; updated=$(echo "$inst" | jq --arg h "$new_host" '.hostname = $h')
         curl -sf -X PUT "${hdr[@]}" -H "Content-Type: application/json" \
           -d "$updated" "$base/api/v1/settings/$svc/$id" > /dev/null
