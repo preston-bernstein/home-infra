@@ -8,6 +8,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=/dev/null
 [[ -f "$SCRIPT_DIR/.env" ]] && source "$SCRIPT_DIR/.env"
 
 # ── Fill these in (or set in .env) ──────────────────────────────────────────

@@ -93,7 +93,7 @@ NAS_EXPECTED="lightrag lightrag-mcp vault-indexer tailscale-nas"
 # In repo compose but absent live is EXPECTED mid-migration:
 NAS_MIGRATION="registry minirag watchtower"
 if [ "$NAS_SSH" = 1 ]; then
-  NAS_PS=$(ssh "${SSH_OPTS[@]}" "agent@$NAS" "$NAS_DOCKER ps --format '{{.Names}}\t{{.Status}}'" 2>/dev/null)
+  NAS_PS=$(ssh "${SSH_OPTS[@]}" "agent@$NAS" "$NAS_DOCKER"" ps --format '{{.Names}}\t{{.Status}}'" 2>/dev/null)
   if [ -z "$NAS_PS" ]; then
     fail "docker ps on NAS returned nothing. Hint: use sudo /usr/local/bin/docker — plain 'sudo docker' is 'command not found' on Synology."
   else
