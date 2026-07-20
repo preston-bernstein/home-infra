@@ -1,0 +1,45 @@
+# Shared observability stack — Prometheus scrape config.
+# Retention (15d) is set via CLI flags on the prometheus service in
+# ../docker-compose.yml (--storage.tsdb.retention.time), not here.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # Self-scrape.
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: node-exporter
+    static_configs:
+      - targets: ["node-exporter:9100"]
+    metric_relabel_configs:
+      # Docker/overlay2 creates dozens of ephemeral per-container mountpoints
+      # under /var/lib/docker; without this, node_filesystem_* series
+      # cardinality grows unbounded as containers churn. node-exporter is
+      # mounted with the host root at /host/root (see docker-compose.yml) and
+      # invoked with --path.rootfs=/host/root, but that flag only affects
+      # which files node-exporter reads (e.g. /host/root/proc/1/mountinfo) —
+      # the `mountpoint` label VALUES it emits are the real host paths as
+      # recorded in that mountinfo content (e.g. "/var/lib/docker/overlay2/..."),
+      # never prefixed with "/host/root". A regex anchored on "/host/root/..."
+      # would never match and this drop rule would silently do nothing.
+      - source_labels: [mountpoint]
+        regex: "/var/lib/docker/.*"
+        action: drop
+
+  - job_name: cadvisor
+    static_configs:
+      - targets: ["cadvisor:8080"]
+    metric_relabel_configs:
+      # Arbitrary user-defined container labels are unbounded cardinality —
+      # any container's `docker run --label`/compose `labels:` value becomes
+      # a distinct label series here.
+      - regex: "container_label_.*"
+        action: labeldrop
+      # Full cgroup path — high-cardinality and redundant with `name`/
+      # `container_label_com_docker_compose_service`.
+      - regex: "id"
+        action: labeldrop

@@ -1,0 +1,22 @@
+# Shared observability stack — Grafana datasource provisioning.
+# Fixed literal uids (no ${DS_*} template variables) so dashboard JSON
+# (compose/desktop/observability/dashboards/*.json, a sibling task) can
+# reference these datasources by a stable id across re-provisioning.
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    uid: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+
+  - name: Loki
+    type: loki
+    uid: loki
+    access: proxy
+    url: http://loki:3100
+    editable: false

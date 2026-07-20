@@ -1,0 +1,104 @@
+// Grafana Alloy — LOGS ONLY in this stack.
+//
+// Prometheus (see sibling stack config, step 1a) scrapes node_exporter and
+// cAdvisor directly for metrics; Alloy plays no role in metrics collection
+// and this file intentionally contains no prometheus.scrape or
+// prometheus.remote_write components.
+//
+// Alloy's job here is exclusively Docker container log shipping to Loki:
+//   discovery.docker  -> enumerate running containers on the desktop's
+//                        Docker socket
+//   discovery.relabel -> scope discovery to this stack's own containers
+//                        only, and keep just a small set of stable labels
+//                        (see scoping/cardinality comments below)
+//   loki.source.docker -> tail each kept container's log stream
+//   loki.write          -> push log entries to Loki
+//
+// Position/offset tracking: the modern loki.source.docker component tracks
+// read positions internally under Alloy's own storage path (the --storage.path
+// CLI flag / component data directory, bind-mounted read-write as e.g.
+// /alloy-data by the sibling docker-compose.yml task) rather than via an
+// explicit position-file argument on the component itself, so no position
+// file path is configured below.
+
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+// SCOPING CHOICE: allow-list by Docker Compose project name. Only containers
+// whose "com.docker.compose.project" label equals "observability" (this
+// stack's own six containers) are kept. This is a hard requirement: without
+// it, discovery.docker would also enumerate financial-pipeline's live
+// bank/investment adapter containers (real Plaid/Betterment/Fidelity/Vanguard
+// data), which must never be auto-captured without an explicit consent/
+// redaction step. To onboard another stack's logs later, either widen this
+// keep regex deliberately or switch to an opt-in "observability.logs=true"
+// container label — do not remove the filter.
+discovery.relabel "observability_containers" {
+  targets = discovery.docker.containers.targets
+
+  // Hard scope filter — keep only this compose project's containers.
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+    regex         = "observability"
+    action        = "keep"
+  }
+
+  // Stable label: Compose service name (e.g. "grafana", "loki", "alloy").
+  // Low cardinality, constant across container recreation.
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "service"
+  }
+
+  // Stable label: Compose project name. Constant "observability" after the
+  // keep rule above; kept explicit on the label set for downstream LogQL
+  // filtering/joins against other datasources.
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+    target_label  = "compose_project"
+  }
+
+  // Stable label: container name with the leading slash and any trailing
+  // Compose instance suffix (numeric replica index, or a hex hash on
+  // recreated/scaled containers) stripped, so a container being recreated
+  // does not mint a brand-new Loki stream/label value each time.
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "^/?(.+?)(?:[-_][0-9a-f]{6,}|[-_][0-9]+)?$"
+    target_label  = "container"
+  }
+
+  // No rule maps __meta_docker_container_id or any other
+  // __meta_docker_container_label_* to a target_label: labels prefixed with
+  // "__" are dropped automatically after relabeling, so the full (churning)
+  // container ID and arbitrary/ephemeral container labels never become Loki
+  // stream labels. This avoids Loki's classic high-cardinality-label
+  // footgun.
+}
+
+loki.source.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+  // MUST be the FILTERED output of discovery.relabel, not the raw
+  // discovery.docker.containers.targets list. Feeding the raw list here was
+  // a confirmed real bug (found during live deployment verification,
+  // 2026-07-19): relabel_rules alone only rewrites per-line labels during
+  // tailing, it does not stop loki.source.docker from tailing non-matching
+  // containers in the first place. With the raw target list, Alloy tailed
+  // EVERY container on the desktop — including unrelated ones (tdarr, ntfy
+  // confirmed leaked into Loki during testing) — with a generic
+  // "unknown_service" fallback label instead of being excluded, which is
+  // exactly the financial-pipeline log-leak scenario this filter exists to
+  // prevent. Using the discovery.relabel component's `.output` (the actual
+  // post-keep-rule target list) is what makes the "keep" action effective at
+  // the target level, not just the label level.
+  targets       = discovery.relabel.observability_containers.output
+  relabel_rules = discovery.relabel.observability_containers.rules
+  forward_to    = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
