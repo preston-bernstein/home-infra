@@ -12,7 +12,8 @@ services:
       - /opt/docker/librechat-stack/data/librechat:/app/data
       - /opt/docker/librechat-stack/librechat.yaml:/app/librechat.yaml:ro
     env_file:
-      - .env
+      - path: .env
+        required: false
 
   vision-mcp:
     image: vision-mcp:latest
