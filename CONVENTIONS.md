@@ -123,6 +123,70 @@ arbitrary strings. Documented here, not packaged — at ~15 lines it's too small
 Deeper: `fashion-monitor/packages/core/src/alerts/ntfy.ts` (canonical, JSON-body),
 `financial-pipeline/packages/adapter-utils/src/ntfy.ts` (header-based, avoid).
 
+## 10. Observability is a shipping requirement, not an afterthought
+
+Every deployed service must be verifiably visible in the shared observability stack
+(`/opt/docker/observability/` on desktop: Prometheus + cadvisor + node-exporter for metrics,
+Alloy + Loki for logs, Grafana to view both) before a deploy counts as "done" — or its
+exclusion must be a deliberate, documented decision, not silence.
+
+**Metrics are automatic, logs are not.** cadvisor scrapes every container on the host by
+default, so CPU/mem/network show up for free. Alloy's Loki shipping is a hard **allow-list**
+scoped to the observability stack's own 6 containers (`discovery.relabel` keeps only
+`com.docker.compose.project == "observability"`) — deliberate, to stop financial-pipeline's
+live Plaid/bank adapter logs from being auto-captured — but the side effect is that **no other
+service's logs reach Loki until explicitly onboarded**: widen the keep-regex for a whole new
+stack, or label the individual container `observability.logs=true` and extend the relabel rule
+to match it (see the comment block in `compose/desktop/observability/alloy/config.alloy` for
+the exact mechanism).
+
+**Found 2026-07-21 (motivating incident):** `clamav-clamd` (the scan-gate security layer
+protecting arr-stack downloads) had been running healthy-looking for 4 days, 0 restarts, but
+its logs — never shipped anywhere — showed 5268/5268 YARA rules from `signature-base` attempted
+and only 552 (~10%) successfully loaded (ClamAV's YARA engine doesn't support several modern
+YARA constructs: single-byte subpatterns, wide-string modifiers). A ~90% detection-rule failure
+sat silent in `docker logs` with no dashboard, no alert, no one aware. The same root pattern —
+"the thing runs, so it looks fine" — also explained that day's household internet slowdown: no
+ICMP/blackbox check on WAN health existed anywhere, so a bandwidth-saturating usenet backlog
+causing 10% packet loss to 1.1.1.1 was only found by manually pinging under load, not by
+anything the stack would have flagged on its own.
+
+**Requirement going forward:** any new/changed service — via `/ship-it` or a manual deploy —
+gets one of: (a) logs shipped to Loki plus a Grafana panel or alert rule for its real failure
+modes (not just "container is up"), (b) an Uptime Kuma monitor if it's a health/uptime-relevant
+endpoint, or (c) an explicit, written reason it's excluded (e.g. financial-pipeline's PII
+exclusion). "It's just running in Docker somewhere" is not coverage. `/ship-it` checks for this
+in Phase 0 (OBSERVABILITY_METHOD discovery) and Phase 8 (post-deploy observability check).
+
+## 11. NFS mounts to the NAS: `noauto,x-systemd.automount`, never a bare boot-time mount
+
+Every NFS mount from the desktop to the NAS (10.0.0.250) uses `noauto,x-systemd.automount` in
+`/etc/fstab`, not a plain `_netdev,nofail` boot-time mount. A bare boot-time NFS mount races
+`network-online.target`: `NetworkManager-wait-online.service` can report "online" before the
+physical NIC actually has carrier + a DHCP lease, so the mount unit fires into "Network is
+unreachable" and fails. `nofail` only stops this from blocking boot — it does **not** retry,
+so the mount just silently never happens and the mountpoint sits there as an empty local
+directory. Nothing downstream errors: Plex starts fine, the library section exists, it just
+shows zero files where the NFS-backed content should be.
+
+**Found 2026-07-21 (motivating incident):** desktop rebooted at 16:47; `eno2` didn't get carrier
++ a DHCP lease until ~16:47:23.6–24.1, but `network-online.target` was already reached at
+16:47:23 and all 5 `10.0.0.250:...` mount units failed with `Network is unreachable` in the same
+second. Plex, Radarr, Sonarr etc. all started normally against empty `/mnt/media/movies` and
+`/mnt/nas/media*` — no crash, no failed healthcheck, nothing in `docker ps` or `systemctl
+status` hinted at it. Discovered only because a newly-added movie (Independence Day) wasn't
+showing up in Plex. Same "the thing runs, so it looks fine" pattern as the clamd YARA incident
+above — a silent, healthy-looking failure with zero blast-radius signal.
+
+**Fix:** convert every NAS NFS line in `/etc/fstab` to `noauto,x-systemd.automount,<rest of the
+original options minus nofail>`. This makes the mountpoint an autofs stub that starts instantly
+at boot (no network dependency) and lazily triggers the real NFS mount on first access — by
+which point NetworkManager has long since finished. Verify with `systemctl status
+<escaped-mountpoint>.automount` (should show `active (waiting)`) and `mount | grep <nas ip>`
+after touching the path. No corresponding fix has been added for automatic detection of a
+*future* recurrence (e.g. a Grafana alert on `node_filesystem` losing the NFS mounts) — that's
+a documented gap, not a decision to skip it.
+
 ---
 
 **Repos that should link here from their `CLAUDE.md`:** algo-factory, algo-corpus,
